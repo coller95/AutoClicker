@@ -17,11 +17,11 @@ def main():
     # Check if PyInstaller is installed
     try:
         import PyInstaller
-        print(f"✓ PyInstaller {PyInstaller.__version__} found")
+        print(f"[OK] PyInstaller {PyInstaller.__version__} found")
     except ImportError:
-        print("✗ PyInstaller not found. Installing...")
+        print("[FAIL] PyInstaller not found. Installing...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-        print("✓ PyInstaller installed")
+        print("[OK] PyInstaller installed")
     
     print()
     
@@ -31,7 +31,7 @@ def main():
         if os.path.exists(folder):
             shutil.rmtree(folder)
             print(f"  Removed {folder}/")
-    print("✓ Cleanup complete")
+    print("[OK] Cleanup complete")
     print()
     
     # Build executable
@@ -51,7 +51,7 @@ def main():
     
     if result.returncode == 0:
         print("=" * 50)
-        print("✓ Build successful!")
+        print("[OK] Build successful!")
         print("Executable location: dist/AutoClicker.exe")
         print("=" * 50)
         
@@ -62,7 +62,7 @@ def main():
             print(f"File size: {size_mb:.2f} MB")
     else:
         print("=" * 50)
-        print("✗ Build failed! Check errors above.")
+        print("[FAIL] Build failed! Check errors above.")
         print("=" * 50)
         sys.exit(1)
 
