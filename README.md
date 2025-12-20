@@ -26,7 +26,7 @@ A powerful Windows desktop application for recording and replaying mouse clicks 
 ### Option 2: Run from Source
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/AutoClicker.git
+   git clone https://github.com/coller95/AutoClicker.git
    cd AutoClicker
    ```
 
