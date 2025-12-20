@@ -32,6 +32,12 @@ class AutoClicker:
         self.loop_count = 1
         self.playback_thread = None
         
+        # Hotkey configuration
+        self.hotkey_record = keyboard.Key.f1
+        self.hotkey_play = keyboard.Key.f2
+        self.hotkey_stop = keyboard.Key.esc
+        self.capturing_hotkey = None
+        
         self.setup_ui()
     
     def setup_ui(self):
@@ -45,14 +51,14 @@ class AutoClicker:
         control_frame.pack(padx=10, pady=5, fill="x")
         
         # Record Button
-        self.record_btn = tk.Button(control_frame, text="Start Recording (F1)", 
+        self.record_btn = tk.Button(control_frame, text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", 
                                     command=self.toggle_recording,
                                     bg="#4CAF50", fg="white", font=("Arial", 10, "bold"),
                                     width=20, height=2)
         self.record_btn.grid(row=0, column=0, padx=5, pady=5)
         
         # Play/Stop Toggle Button
-        self.play_btn = tk.Button(control_frame, text="Play Recording (F2)", 
+        self.play_btn = tk.Button(control_frame, text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", 
                                   command=self.toggle_playback,
                                   bg="#2196F3", fg="white", font=("Arial", 10, "bold"),
                                   width=20, height=2)
@@ -78,6 +84,25 @@ class AutoClicker:
         
         tk.Label(settings_frame, text="(0 = Infinite)", fg="gray", font=("Arial", 8)).grid(row=0, column=2, sticky="w")
         
+        # Hotkey Configuration
+        tk.Label(settings_frame, text="Record Hotkey:").grid(row=1, column=0, sticky="w", pady=5)
+        self.record_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_record),
+                                           command=lambda: self.capture_hotkey('record'),
+                                           width=12)
+        self.record_hotkey_btn.grid(row=1, column=1, padx=5, sticky="w")
+        
+        tk.Label(settings_frame, text="Play/Stop Hotkey:").grid(row=2, column=0, sticky="w", pady=5)
+        self.play_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_play),
+                                         command=lambda: self.capture_hotkey('play'),
+                                         width=12)
+        self.play_hotkey_btn.grid(row=2, column=1, padx=5, sticky="w")
+        
+        tk.Label(settings_frame, text="Force Stop Hotkey:").grid(row=3, column=0, sticky="w", pady=5)
+        self.stop_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_stop),
+                                        command=lambda: self.capture_hotkey('stop'),
+                                        width=12)
+        self.stop_hotkey_btn.grid(row=3, column=1, padx=5, sticky="w")
+        
         # Status Frame
         status_frame = tk.LabelFrame(self.root, text="Status", padx=10, pady=10)
         status_frame.pack(padx=10, pady=5, fill="x")
@@ -95,22 +120,77 @@ class AutoClicker:
         self.event_log.pack(fill="both", expand=True)
         
         # Info Label
-        info_label = tk.Label(self.root, 
-                             text="Hotkeys: F1=Toggle Record | F2=Toggle Play/Stop | ESC=Stop | Click/Type to record",
+        self.info_label = tk.Label(self.root, 
+                             text=self.get_hotkey_info(),
                              font=("Arial", 8), fg="gray")
-        info_label.pack(pady=5)
+        self.info_label.pack(pady=5)
         
         # Setup global hotkeys
         self.setup_hotkeys()
     
+    def get_key_name(self, key):
+        """Get a readable name for a key"""
+        if hasattr(key, 'name'):
+            return key.name.upper()
+        return str(key).replace('Key.', '').upper()
+    
+    def get_hotkey_info(self):
+        """Get hotkey information string"""
+        rec = self.get_key_name(self.hotkey_record)
+        play = self.get_key_name(self.hotkey_play)
+        stop = self.get_key_name(self.hotkey_stop)
+        return f"Hotkeys: {rec}=Toggle Record | {play}=Toggle Play/Stop | {stop}=Force Stop | Click/Type to record"
+    
+    def capture_hotkey(self, hotkey_type):
+        """Start capturing a new hotkey"""
+        self.capturing_hotkey = hotkey_type
+        
+        if hotkey_type == 'record':
+            self.record_hotkey_btn.config(text="Press key...", bg="yellow")
+        elif hotkey_type == 'play':
+            self.play_hotkey_btn.config(text="Press key...", bg="yellow")
+        elif hotkey_type == 'stop':
+            self.stop_hotkey_btn.config(text="Press key...", bg="yellow")
+        
+        self.update_status("Press a key to set as hotkey...", "blue")
+    
+    def set_hotkey(self, key, hotkey_type):
+        """Set a new hotkey"""
+        if hotkey_type == 'record':
+            self.hotkey_record = key
+            self.record_hotkey_btn.config(text=self.get_key_name(key), bg="SystemButtonFace")
+        elif hotkey_type == 'play':
+            self.hotkey_play = key
+            self.play_hotkey_btn.config(text=self.get_key_name(key), bg="SystemButtonFace")
+        elif hotkey_type == 'stop':
+            self.hotkey_stop = key
+            self.stop_hotkey_btn.config(text=self.get_key_name(key), bg="SystemButtonFace")
+        
+        self.capturing_hotkey = None
+        self.info_label.config(text=self.get_hotkey_info())
+        self.update_status(f"Hotkey updated to {self.get_key_name(key)}", "green")
+        
+        # Restart hotkey listener with new keys
+        self.setup_hotkeys()
+    
     def setup_hotkeys(self):
+        # Stop existing listener if any
+        if hasattr(self, 'hotkey_listener') and self.hotkey_listener:
+            self.hotkey_listener.stop()
+        
         def on_press(key):
             try:
-                if key == keyboard.Key.f1:
+                # If capturing a hotkey, set it
+                if self.capturing_hotkey:
+                    self.root.after(0, lambda: self.set_hotkey(key, self.capturing_hotkey))
+                    return
+                
+                # Normal hotkey handling
+                if key == self.hotkey_record:
                     self.toggle_recording()
-                elif key == keyboard.Key.f2:
+                elif key == self.hotkey_play:
                     self.toggle_playback()
-                elif key == keyboard.Key.esc:
+                elif key == self.hotkey_stop:
                     if self.is_playing:
                         self.stop_playback()
             except:
@@ -134,7 +214,7 @@ class AutoClicker:
         self.recorded_events = []
         self.start_time = time.time()
         
-        self.record_btn.config(text="Stop Recording (F1)", bg="#f44336")
+        self.record_btn.config(text=f"Stop Recording ({self.get_key_name(self.hotkey_record)})", bg="#f44336")
         self.update_status("Recording... Click and type!", "red")
         self.event_log.delete(1.0, tk.END)
         
@@ -160,7 +240,7 @@ class AutoClicker:
         if self.keyboard_listener:
             self.keyboard_listener.stop()
         
-        self.record_btn.config(text="Start Recording (F1)", bg="#4CAF50")
+        self.record_btn.config(text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", bg="#4CAF50")
         self.update_status(f"Recording stopped. {len(self.recorded_events)} events recorded.", "green")
     
     def on_click(self, x, y, button, pressed):
@@ -192,12 +272,9 @@ class AutoClicker:
         if not self.is_recording:
             return
         
-        # Ignore hotkeys
-        try:
-            if key in [keyboard.Key.f1, keyboard.Key.f2, keyboard.Key.esc]:
-                return
-        except:
-            pass
+        # Ignore configured hotkeys
+        if key in [self.hotkey_record, self.hotkey_play, self.hotkey_stop]:
+            return
         
         timestamp = time.time() - self.start_time
         
@@ -221,12 +298,9 @@ class AutoClicker:
         if not self.is_recording:
             return
         
-        # Ignore hotkeys
-        try:
-            if key in [keyboard.Key.f1, keyboard.Key.f2, keyboard.Key.esc]:
-                return
-        except:
-            pass
+        # Ignore configured hotkeys
+        if key in [self.hotkey_record, self.hotkey_play, self.hotkey_stop]:
+            return
         
         timestamp = time.time() - self.start_time
         
@@ -267,7 +341,7 @@ class AutoClicker:
         self.loop_count = int(self.loop_spinbox.get())
         self.is_playing = True
         
-        self.play_btn.config(text="Stop Playing (F2)", bg="#f44336")
+        self.play_btn.config(text=f"Stop Playing ({self.get_key_name(self.hotkey_play)})", bg="#f44336")
         
         if self.loop_count == 0:
             self.update_status("Playing recording (Infinite loops)...", "blue")
@@ -322,7 +396,7 @@ class AutoClicker:
         
         finally:
             self.is_playing = False
-            self.root.after(0, lambda: self.play_btn.config(text="Play Recording (F2)", bg="#2196F3"))
+            self.root.after(0, lambda: self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3"))
             self.root.after(0, self.update_status, "Playback completed!", "green")
     
     def replay_mouse_click(self, event):
@@ -386,7 +460,7 @@ class AutoClicker:
     def stop_playback(self):
         if self.is_playing:
             self.is_playing = False
-            self.play_btn.config(text="Play Recording (F2)", bg="#2196F3")
+            self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3")
             self.update_status("Playback stopped!", "orange")
     
     def clear_recording(self):
