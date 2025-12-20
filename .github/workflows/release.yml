@@ -1,0 +1,88 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0, v1.0.1, etc.
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build executable
+      run: python build.py
+    
+    - name: Verify build
+      run: |
+        if (Test-Path "dist\AutoClicker.exe") {
+          Write-Host "✓ Build successful!"
+          $size = (Get-Item "dist\AutoClicker.exe").Length / 1MB
+          Write-Host "File size: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Error "Build failed - executable not found"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: AutoClicker ${{ github.ref_name }}
+        body: |
+          ## AutoClicker ${{ github.ref_name }}
+          
+          ### 📥 Download
+          Download `AutoClicker.exe` below and run it - no installation needed!
+          
+          ### ✨ Features
+          - 🎬 Record and replay mouse clicks and keyboard inputs
+          - ⌨️ Customizable hotkeys (F1, F2, ESC by default)
+          - 🔁 Loop control (1-100 times or infinite)
+          - 📝 Real-time event log with timestamps
+          - 🎮 Simple and intuitive GUI
+          
+          ### 🎯 Quick Start
+          1. Press **F1** to start/stop recording
+          2. Perform your clicks and key presses
+          3. Set loop count (0 = infinite)
+          4. Press **F2** to play/stop recording
+          5. Press **ESC** to force stop
+          
+          ### 📚 Documentation
+          See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation
+          
+          ### ⚠️ Safety Notice
+          Use responsibly! Ensure you have permission to automate any application.
+          
+          ---
+          **System Requirements:** Windows 7/8/10/11
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/AutoClicker.exe
+        asset_name: AutoClicker.exe
+        asset_content_type: application/vnd.microsoft.portable-executable

@@ -27,6 +27,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Release artifacts - executables should only be in GitHub Releases
+artifacts/
+
 # PyInstaller
 *.manifest
 # Keep AutoClicker.spec for build configuration
