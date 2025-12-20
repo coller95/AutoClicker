@@ -78,10 +78,12 @@ class AutoClicker:
         
         # Loop Count
         tk.Label(settings_frame, text="Loop Count:").grid(row=0, column=0, sticky="w")
-        self.loop_spinbox = tk.Spinbox(settings_frame, from_=1, to=100, width=10)
+        self.loop_spinbox = tk.Spinbox(settings_frame, from_=0, to=100, width=10)
         self.loop_spinbox.grid(row=0, column=1, padx=5)
         self.loop_spinbox.delete(0, "end")
         self.loop_spinbox.insert(0, "1")
+        
+        tk.Label(settings_frame, text="(0 = Infinite)", fg="gray", font=("Arial", 8)).grid(row=0, column=2, sticky="w")
         
         # Status Frame
         status_frame = tk.LabelFrame(self.root, text="Status", padx=10, pady=10)
@@ -268,7 +270,11 @@ class AutoClicker:
         
         self.play_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
-        self.update_status(f"Playing recording ({self.loop_count} loops)...", "blue")
+        
+        if self.loop_count == 0:
+            self.update_status("Playing recording (Infinite loops)...", "blue")
+        else:
+            self.update_status(f"Playing recording ({self.loop_count} loops)...", "blue")
         
         self.playback_thread = threading.Thread(target=self.playback_worker)
         self.playback_thread.daemon = True
@@ -276,12 +282,23 @@ class AutoClicker:
     
     def playback_worker(self):
         try:
-            for loop in range(self.loop_count):
+            loop = 0
+            while True:
                 if not self.is_playing:
                     break
                 
-                self.root.after(0, self.update_status, 
-                               f"Playing loop {loop + 1}/{self.loop_count}...", "blue")
+                # Check if we've reached the loop limit (if not infinite)
+                if self.loop_count > 0 and loop >= self.loop_count:
+                    break
+                
+                loop += 1
+                
+                if self.loop_count == 0:
+                    self.root.after(0, self.update_status, 
+                                   f"Playing loop {loop} (Infinite)...", "blue")
+                else:
+                    self.root.after(0, self.update_status, 
+                                   f"Playing loop {loop}/{self.loop_count}...", "blue")
                 
                 last_timestamp = 0
                 for event in self.recorded_events:
