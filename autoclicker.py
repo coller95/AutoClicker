@@ -51,26 +51,19 @@ class AutoClicker:
                                     width=20, height=2)
         self.record_btn.grid(row=0, column=0, padx=5, pady=5)
         
-        # Play Button
+        # Play/Stop Toggle Button
         self.play_btn = tk.Button(control_frame, text="Play Recording (F2)", 
-                                  command=self.play_recording,
+                                  command=self.toggle_playback,
                                   bg="#2196F3", fg="white", font=("Arial", 10, "bold"),
                                   width=20, height=2)
         self.play_btn.grid(row=0, column=1, padx=5, pady=5)
-        
-        # Stop Button
-        self.stop_btn = tk.Button(control_frame, text="Stop (ESC)", 
-                                  command=self.stop_playback,
-                                  bg="#f44336", fg="white", font=("Arial", 10, "bold"),
-                                  width=20, height=2, state="disabled")
-        self.stop_btn.grid(row=0, column=2, padx=5, pady=5)
         
         # Clear Button
         clear_btn = tk.Button(control_frame, text="Clear Recording", 
                              command=self.clear_recording,
                              bg="#FF9800", fg="white", font=("Arial", 10, "bold"),
                              width=20, height=2)
-        clear_btn.grid(row=1, column=0, padx=5, pady=5)
+        clear_btn.grid(row=0, column=2, padx=5, pady=5)
         
         # Settings Frame
         settings_frame = tk.LabelFrame(self.root, text="Settings", padx=10, pady=10)
@@ -103,7 +96,7 @@ class AutoClicker:
         
         # Info Label
         info_label = tk.Label(self.root, 
-                             text="Hotkeys: F1=Record | F2=Play | ESC=Stop | Click/Type to record",
+                             text="Hotkeys: F1=Toggle Record | F2=Toggle Play/Stop | ESC=Stop | Click/Type to record",
                              font=("Arial", 8), fg="gray")
         info_label.pack(pady=5)
         
@@ -116,9 +109,10 @@ class AutoClicker:
                 if key == keyboard.Key.f1:
                     self.toggle_recording()
                 elif key == keyboard.Key.f2:
-                    self.play_recording()
+                    self.toggle_playback()
                 elif key == keyboard.Key.esc:
-                    self.stop_playback()
+                    if self.is_playing:
+                        self.stop_playback()
             except:
                 pass
         
@@ -252,6 +246,12 @@ class AutoClicker:
         self.event_log.insert(tk.END, log_text)
         self.event_log.see(tk.END)
     
+    def toggle_playback(self):
+        if self.is_playing:
+            self.stop_playback()
+        else:
+            self.play_recording()
+    
     def play_recording(self):
         if self.is_recording:
             self.update_status("Stop recording first!", "red")
@@ -262,14 +262,12 @@ class AutoClicker:
             return
         
         if self.is_playing:
-            self.update_status("Already playing!", "red")
             return
         
         self.loop_count = int(self.loop_spinbox.get())
         self.is_playing = True
         
-        self.play_btn.config(state="disabled")
-        self.stop_btn.config(state="normal")
+        self.play_btn.config(text="Stop Playing (F2)", bg="#f44336")
         
         if self.loop_count == 0:
             self.update_status("Playing recording (Infinite loops)...", "blue")
@@ -324,8 +322,7 @@ class AutoClicker:
         
         finally:
             self.is_playing = False
-            self.root.after(0, self.play_btn.config, {'state': 'normal'})
-            self.root.after(0, self.stop_btn.config, {'state': 'disabled'})
+            self.root.after(0, lambda: self.play_btn.config(text="Play Recording (F2)", bg="#2196F3"))
             self.root.after(0, self.update_status, "Playback completed!", "green")
     
     def replay_mouse_click(self, event):
@@ -389,6 +386,7 @@ class AutoClicker:
     def stop_playback(self):
         if self.is_playing:
             self.is_playing = False
+            self.play_btn.config(text="Play Recording (F2)", bg="#2196F3")
             self.update_status("Playback stopped!", "orange")
     
     def clear_recording(self):
