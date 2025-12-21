@@ -7,11 +7,12 @@ import threading
 import time
 import json
 import os
+from __version__ import __version__
 
 class AutoClicker:
     def __init__(self, root):
         self.root = root
-        self.root.title("AutoClicker with Recording")
+        self.root.title(f"AutoClicker v{__version__}")
         self.root.geometry("800x500")
         self.root.resizable(True, True)
         self.root.minsize(750, 450)
@@ -316,7 +317,7 @@ class AutoClicker:
         self.start_time = time.time()
         
         # Update UI indicators
-        self.root.title("🔴 RECORDING - AutoClicker")
+        self.root.title(f"🔴 RECORDING - AutoClicker v{__version__}")
         self.show_banner("● RECORDING", "#f44336")
         
         self.record_btn.config(text=f"Stop ({self.get_key_name(self.hotkey_record)})", bg="#f44336")
@@ -346,7 +347,7 @@ class AutoClicker:
             self.keyboard_listener.stop()
         
         # Update UI indicators
-        self.root.title("AutoClicker with Recording")
+        self.root.title(f"AutoClicker v{__version__}")
         self.hide_banner()
         
         self.record_btn.config(text=f"Record ({self.get_key_name(self.hotkey_record)})", bg="#4CAF50")
@@ -451,7 +452,7 @@ class AutoClicker:
         self.is_playing = True
         
         # Update UI indicators
-        self.root.title("▶️ PLAYING - AutoClicker")
+        self.root.title(f"▶️ PLAYING - AutoClicker v{__version__}")
         self.show_banner("▶ PLAYING", "#2196F3")
         
         self.play_btn.config(text=f"Stop ({self.get_key_name(self.hotkey_play)})", bg="#f44336")
@@ -518,7 +519,7 @@ class AutoClicker:
         
         finally:
             self.is_playing = False
-            self.root.after(0, lambda: self.root.title("AutoClicker with Recording"))
+            self.root.after(0, lambda: self.root.title(f"AutoClicker v{__version__}"))
             self.root.after(0, self.hide_banner)
             self.root.after(0, lambda: self.play_btn.config(text=f"Play ({self.get_key_name(self.hotkey_play)})", bg="#2196F3"))
             self.root.after(0, self.update_status, "Playback completed!", "green")
@@ -584,7 +585,7 @@ class AutoClicker:
     def stop_playback(self):
         if self.is_playing:
             self.is_playing = False
-            self.root.title("AutoClicker with Recording")
+            self.root.title(f"AutoClicker v{__version__}")
             self.hide_banner()
             self.play_btn.config(text=f"Play ({self.get_key_name(self.hotkey_play)})", bg="#2196F3")
             self.update_status("Playback stopped!", "orange")
@@ -768,7 +769,7 @@ class AutoClicker:
         self.is_spam_clicking = True
         
         # Update UI indicators
-        self.root.title("⚡ SPAM CLICKING - AutoClicker")
+        self.root.title(f"⚡ SPAM CLICKING - AutoClicker v{__version__}")
         self.show_banner("⚡ SPAM CLICKING", "#FF9800")
         
         self.update_status(f"Spam clicking! Press {self.get_key_name(self.hotkey_spam)} to stop", "red")
@@ -790,7 +791,7 @@ class AutoClicker:
         """Stop spam clicking"""
         if self.is_spam_clicking:
             self.is_spam_clicking = False
-            self.root.title("AutoClicker with Recording")
+            self.root.title(f"AutoClicker v{__version__}")
             self.hide_banner()
             self.update_status("Spam clicking stopped!", "green")
     

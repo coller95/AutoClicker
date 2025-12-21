@@ -7,10 +7,11 @@ import os
 import sys
 import shutil
 import subprocess
+from __version__ import __version__
 
 def main():
     print("=" * 50)
-    print("Building AutoClicker Executable")
+    print(f"Building AutoClicker v{__version__} Executable")
     print("=" * 50)
     print()
     
@@ -48,7 +49,7 @@ def main():
     
     if result.returncode == 0:
         print("=" * 50)
-        print("[OK] Build successful!")
+        print(f"[OK] Build successful! AutoClicker v{__version__}")
         print("Executable location: dist/AutoClicker.exe")
         print("=" * 50)
         

@@ -5,6 +5,45 @@ All notable changes to AutoClicker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Auto-Versioning System**: Automated version management with bump2version
+- Version display in window title (e.g., "AutoClicker v1.5.0")
+- Version display in build output
+- Convenience script for easy version bumping (bump_version.py)
+- Comprehensive versioning documentation (VERSIONING.md)
+
+### Developer Experience
+- Single source of truth for version (`__version__.py`)
+- Automatic git tagging on version bumps
+- Automatic CHANGELOG entry creation
+- Simple commands: `python bump_version.py [patch|minor|major]`
+
+## [1.5.0] - 2025-12-21
+
+### Added
+- **Save/Load Configuration**: Hotkey and timing settings now save with recordings
+- Configuration persistence in .aclk files
+- Automatic settings restore when loading recordings
+
+### Improved
+- Better user experience with preserved settings
+- Seamless workflow when switching between recordings
+
+## [1.4.0] - 2025-12-21
+
+### Added
+- **Save/Load Recordings**: Export and import recordings with .aclk file format
+- **Side-by-Side Layout**: Improved UI with better space utilization
+- **Icon Support**: Application icon in window title bar and taskbar
+- File dialogs for saving and loading recordings
+
+### Improved
+- Professional file format for recording management
+- Better organization of UI elements
+- Enhanced visual appearance
+
 ## [1.3.0] - 2025-12-21
 
 ### Added

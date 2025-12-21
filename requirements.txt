@@ -1,2 +1,3 @@
 pynput==1.7.6
 pyinstaller
+bump2version
