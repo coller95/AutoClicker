@@ -29,6 +29,10 @@ class AutoClicker:
         self.is_spam_clicking = False
         self.spam_click_thread = None
         
+        # Banner window
+        self.banner_window = None
+        self.border_frames = []
+        
         # Listeners
         self.mouse_listener = None
         self.keyboard_listener = None
@@ -252,6 +256,10 @@ class AutoClicker:
         self.recorded_events = []
         self.start_time = time.time()
         
+        # Update UI indicators
+        self.root.title("🔴 RECORDING - AutoClicker")
+        self.show_banner("● RECORDING", "#f44336")
+        
         self.record_btn.config(text=f"Stop Recording ({self.get_key_name(self.hotkey_record)})", bg="#f44336")
         self.update_status("Recording... Click and type!", "red")
         self.event_log.delete(1.0, tk.END)
@@ -277,6 +285,10 @@ class AutoClicker:
             self.mouse_listener.stop()
         if self.keyboard_listener:
             self.keyboard_listener.stop()
+        
+        # Update UI indicators
+        self.root.title("AutoClicker with Recording")
+        self.hide_banner()
         
         self.record_btn.config(text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", bg="#4CAF50")
         self.update_status(f"Recording stopped. {len(self.recorded_events)} events recorded.", "green")
@@ -379,6 +391,10 @@ class AutoClicker:
         self.loop_count = int(self.loop_spinbox.get())
         self.is_playing = True
         
+        # Update UI indicators
+        self.root.title("▶️ PLAYING - AutoClicker")
+        self.show_banner("▶ PLAYING", "#2196F3")
+        
         self.play_btn.config(text=f"Stop Playing ({self.get_key_name(self.hotkey_play)})", bg="#f44336")
         
         if self.loop_count == 0:
@@ -443,6 +459,8 @@ class AutoClicker:
         
         finally:
             self.is_playing = False
+            self.root.after(0, lambda: self.root.title("AutoClicker with Recording"))
+            self.root.after(0, self.hide_banner)
             self.root.after(0, lambda: self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3"))
             self.root.after(0, self.update_status, "Playback completed!", "green")
     
@@ -507,6 +525,8 @@ class AutoClicker:
     def stop_playback(self):
         if self.is_playing:
             self.is_playing = False
+            self.root.title("AutoClicker with Recording")
+            self.hide_banner()
             self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3")
             self.update_status("Playback stopped!", "orange")
     
@@ -529,6 +549,11 @@ class AutoClicker:
             return
         
         self.is_spam_clicking = True
+        
+        # Update UI indicators
+        self.root.title("⚡ SPAM CLICKING - AutoClicker")
+        self.show_banner("⚡ SPAM CLICKING", "#FF9800")
+        
         self.update_status(f"Spam clicking! Press {self.get_key_name(self.hotkey_spam)} to stop", "red")
         
         self.spam_click_thread = threading.Thread(target=self.spam_click_worker)
@@ -548,15 +573,89 @@ class AutoClicker:
         """Stop spam clicking"""
         if self.is_spam_clicking:
             self.is_spam_clicking = False
+            self.root.title("AutoClicker with Recording")
+            self.hide_banner()
             self.update_status("Spam clicking stopped!", "green")
     
     def update_status(self, message, color="black"):
         self.status_label.config(text=message, fg=color)
     
+    def show_banner(self, text, bg_color):
+        """Show compact always-on-top banner at top-left with screen border"""
+        if self.banner_window:
+            self.hide_banner()
+        
+        # Create compact banner at top-left
+        self.banner_window = tk.Toplevel(self.root)
+        self.banner_window.overrideredirect(True)  # Remove window decorations
+        self.banner_window.attributes('-topmost', True)  # Always on top
+        
+        # Create compact banner label
+        banner_label = tk.Label(self.banner_window, text=text,
+                               font=("Arial", 11, "bold"),
+                               bg=bg_color, fg="white",
+                               padx=15, pady=8)
+        banner_label.pack()
+        
+        # Update geometry after packing to get actual size
+        self.banner_window.update_idletasks()
+        
+        # Position at top-left corner
+        self.banner_window.geometry(f"+10+10")
+        
+        # Create thin border frames around screen edges
+        screen_width = self.banner_window.winfo_screenwidth()
+        screen_height = self.banner_window.winfo_screenheight()
+        border_thickness = 4
+        
+        # Top border
+        top_frame = tk.Toplevel(self.root)
+        top_frame.overrideredirect(True)
+        top_frame.attributes('-topmost', True)
+        top_frame.configure(bg=bg_color)
+        top_frame.geometry(f"{screen_width}x{border_thickness}+0+0")
+        self.border_frames.append(top_frame)
+        
+        # Bottom border
+        bottom_frame = tk.Toplevel(self.root)
+        bottom_frame.overrideredirect(True)
+        bottom_frame.attributes('-topmost', True)
+        bottom_frame.configure(bg=bg_color)
+        bottom_frame.geometry(f"{screen_width}x{border_thickness}+0+{screen_height-border_thickness}")
+        self.border_frames.append(bottom_frame)
+        
+        # Left border
+        left_frame = tk.Toplevel(self.root)
+        left_frame.overrideredirect(True)
+        left_frame.attributes('-topmost', True)
+        left_frame.configure(bg=bg_color)
+        left_frame.geometry(f"{border_thickness}x{screen_height}+0+0")
+        self.border_frames.append(left_frame)
+        
+        # Right border
+        right_frame = tk.Toplevel(self.root)
+        right_frame.overrideredirect(True)
+        right_frame.attributes('-topmost', True)
+        right_frame.configure(bg=bg_color)
+        right_frame.geometry(f"{border_thickness}x{screen_height}+{screen_width-border_thickness}+0")
+        self.border_frames.append(right_frame)
+    
+    def hide_banner(self):
+        """Hide and destroy the banner window and border frames"""
+        if self.banner_window:
+            self.banner_window.destroy()
+            self.banner_window = None
+        
+        for frame in self.border_frames:
+            frame.destroy()
+        self.border_frames = []
+    
     def on_closing(self):
         self.is_recording = False
         self.is_playing = False
         self.is_spam_clicking = False
+        
+        self.hide_banner()
         
         if self.mouse_listener:
             self.mouse_listener.stop()
