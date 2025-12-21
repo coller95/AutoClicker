@@ -80,7 +80,7 @@ jobs:
       id: version
       shell: pwsh
       run: |
-        $version = (Get-Content __version__.py | Select-String "__version__").ToString().Split('"')[1]
+        $version = python -c "from __version__ import __version__; print(__version__)"
         echo "version=$version" >> $env:GITHUB_OUTPUT
         Write-Host "New version: $version"
     
