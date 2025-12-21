@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Auto-Versioning System**: Automated version management with bump2version
-- Version display in window title (e.g., "AutoClicker v1.5.0")
+- Version display in window title (e.g., "AutoClicker v## [Unreleased]")
 - Version display in build output
 - Convenience script for easy version bumping (bump_version.py)
 - Comprehensive versioning documentation (VERSIONING.md)
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic CHANGELOG entry creation
 - Simple commands: `python bump_version.py [patch|minor|major]`
 
-## [1.5.0] - 2025-12-21
+## [## [Unreleased]] - 2025-12-21
 
 ### Added
 - **Save/Load Configuration**: Hotkey and timing settings now save with recordings
