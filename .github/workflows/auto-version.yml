@@ -1,0 +1,95 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: windows-latest
+    # Skip if commit message contains [skip-version] or starts with "Bump version"
+    if: github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[skip-version]') && !startsWith(github.event.head_commit.message, 'Bump version'))
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install bump2version
+      run: pip install bump2version
+    
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Determine version bump type
+      id: bump_type
+      run: |
+        $commit_msg = "${{ github.event.head_commit.message }}"
+        $bump = "patch"
+        
+        # Check commit message for keywords
+        if ($commit_msg -match "\[major\]|\bBREAKING CHANGE\b|\bbreaking\b") {
+          $bump = "major"
+        } elseif ($commit_msg -match "\[minor\]|\bfeat\b|\bfeature\b") {
+          $bump = "minor"
+        } elseif ($commit_msg -match "\[patch\]|\bfix\b|\bbugfix\b") {
+          $bump = "patch"
+        }
+        
+        # Override with manual input if workflow_dispatch
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $bump = "${{ github.event.inputs.bump_type }}"
+        }
+        
+        echo "type=$bump" >> $env:GITHUB_OUTPUT
+        Write-Host "Version bump type: $bump"
+      shell: pwsh
+    
+    - name: Bump version
+      run: |
+        python -m bumpversion ${{ steps.bump_type.outputs.type }} --verbose
+      
+    - name: Get new version
+      id: version
+      run: |
+        $version = (Get-Content __version__.py | Select-String "__version__").ToString().Split('"')[1]
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        Write-Host "New version: $version"
+      shell: pwsh
+    
+    - name: Push changes and tag
+      run: |
+        git push
+        git push --tags
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Release Summary
+      run: |
+        Write-Host "✅ Version bumped to v${{ steps.version.outputs.version }}"
+        Write-Host "🏷️ Tag created: v${{ steps.version.outputs.version }}"
+        Write-Host "🚀 Changes pushed to repository"
+      shell: pwsh

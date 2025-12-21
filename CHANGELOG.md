@@ -7,20 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2025-12-21
+
 ### Added
-- **Auto-Versioning System**: Automated version management with bump2version
-- Version display in window title (e.g., "AutoClicker v## [Unreleased]")
-- Version display in build output
-- Convenience script for easy version bumping (bump_version.py)
-- Comprehensive versioning documentation (VERSIONING.md)
+- **Auto-Versioning**: bump2version + git tags + GitHub Actions workflow
+- Version shown in window title and build output
+- Convenience script: `bump_version.py`
 
 ### Developer Experience
-- Single source of truth for version (`__version__.py`)
-- Automatic git tagging on version bumps
-- Automatic CHANGELOG entry creation
-- Simple commands: `python bump_version.py [patch|minor|major]`
+- Single source of truth: `__version__.py`
+- Automatic tags like `v1.6.0`
 
-## [## [Unreleased]] - 2025-12-21
+## [1.5.0] - 2025-12-21
 
 ### Added
 - **Save/Load Configuration**: Hotkey and timing settings now save with recordings
