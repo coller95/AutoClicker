@@ -1,91 +1,112 @@
-name: Build and Release
+name: Release Pipeline
 
 on:
   push:
-    tags:
-      - 'v*'  # Trigger on version tags like v1.0.0, v1.0.1, etc.
-  workflow_dispatch:  # Allow manual trigger from GitHub Actions UI
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-and-release:
+  bump-version:
     runs-on: windows-latest
+    # Skip if commit message contains [skip-version] or starts with "Bump version"
+    if: github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[skip-version]') && !startsWith(github.event.head_commit.message, 'Bump version'))
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
     
+    - name: Install bump2version
+      run: pip install bump2version
+    
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    
+    - name: Determine version bump type
+      id: bump_type
+      shell: pwsh
+      run: |
+        $commit_msg = "${{ github.event.head_commit.message }}"
+        $bump = "patch"
+        
+        # Check commit message for keywords
+        if ($commit_msg -match "\[major\]|\bBREAKING CHANGE\b|\bbreaking\b") {
+          $bump = "major"
+        } elseif ($commit_msg -match "\[minor\]|\bfeat\b|\bfeature\b") {
+          $bump = "minor"
+        } elseif ($commit_msg -match "\[patch\]|\bfix\b|\bbugfix\b") {
+          $bump = "patch"
+        }
+        
+        # Override with manual input if workflow_dispatch
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $bump = "${{ github.event.inputs.bump_type }}"
+        }
+        
+        echo "type=$bump" >> $env:GITHUB_OUTPUT
+        Write-Host "Version bump type: $bump"
+    
+    - name: Bump version
+      run: |
+        python -m bumpversion ${{ steps.bump_type.outputs.type }} --verbose
+      
+    - name: Get new version
+      id: version
+      shell: pwsh
+      run: |
+        $version = (Get-Content __version__.py | Select-String "__version__").ToString().Split('"')[1]
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        Write-Host "New version: $version"
+    
+    - name: Push changes and tag
+      run: |
+        git push
+        git push --tags
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
-    - name: Build executable
+        pip install pyinstaller
+
+    - name: Build Executable
       run: python build.py
-    
-    - name: Verify build
-      run: |
-        if (Test-Path "dist\AutoClicker.exe") {
-          Write-Host "✓ Build successful!"
-          $size = (Get-Item "dist\AutoClicker.exe").Length / 1MB
-          Write-Host "File size: $([math]::Round($size, 2)) MB"
-        } else {
-          Write-Error "Build failed - executable not found"
-          exit 1
-        }
-      shell: pwsh
-    
-    - name: Create Release and Upload Assets
+
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        name: AutoClicker ${{ github.ref_name }}
-        body: |
-          ## AutoClicker ${{ github.ref_name }}
-          
-          ### 📥 Download
-          Download `AutoClicker.exe` below and run it - no installation needed!
-          
-          ### ✨ Features
-          - 🎬 Record and replay mouse clicks and keyboard inputs
-          - ⚡ **Rapid-fire spam click (F3)** - 100 clicks per second!
-          - 🎨 **Visual indicators** - Screen border and banner show recording/playing status
-          - ⚙️ **Playback speed control** - Adjust from 0.1x to 10x speed
-          - ⏱️ **Delay between loops** - Set custom delays between repetitions
-          - ⌨️ Customizable hotkeys (F1, F2, F3, ESC by default)
-          - 🔁 Loop control (0-100 times or infinite)
-          - 📝 Real-time event log with timestamps
-          - 🎮 Simple and intuitive GUI
-          
-          ### 🎯 Quick Start
-          **Recording & Playback:**
-          1. Press **F1** to start/stop recording
-          2. Perform your clicks and key presses
-          3. Set loop count (0 = infinite) and playback speed
-          4. Press **F2** to play/stop recording
-          5. Press **ESC** to force stop
-          
-          **Spam Click Mode:**
-          - Press **F3** to toggle rapid-fire left clicking
-          - Perfect for saving time with repetitive clicking
-          
-          ### 📚 Documentation
-          See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation
-          
-          ### ⚠️ Safety Notice
-          Use responsibly! Ensure you have permission to automate any application.
-          
-          ---
-          **System Requirements:** Windows 7/8/10/11
-        files: |
-          dist/AutoClicker.exe
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        generate_release_notes: true
         draft: false
         prerelease: false
+        files: dist/AutoClicker.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
