@@ -1,19 +1,20 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, filedialog, messagebox
 from pynput import mouse, keyboard
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Key, Controller as KeyboardController
 import threading
 import time
 import json
+import os
 
 class AutoClicker:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoClicker with Recording")
-        self.root.geometry("650x650")
+        self.root.geometry("800x800")
         self.root.resizable(True, True)
-        self.root.minsize(650, 650)
+        self.root.minsize(800, 800)
         
         # Controllers
         self.mouse_controller = MouseController()
@@ -54,11 +55,11 @@ class AutoClicker:
         # Title
         title_label = tk.Label(self.root, text="AutoClicker with Recording", 
                               font=("Arial", 16, "bold"))
-        title_label.pack(pady=10)
+        title_label.pack(pady=15)
         
         # Control Frame
-        control_frame = tk.LabelFrame(self.root, text="Controls", padx=10, pady=10)
-        control_frame.pack(padx=10, pady=5, fill="x")
+        control_frame = tk.LabelFrame(self.root, text="Controls", padx=15, pady=15)
+        control_frame.pack(padx=20, pady=10, fill="x")
         
         # Record Button
         self.record_btn = tk.Button(control_frame, text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", 
@@ -81,9 +82,23 @@ class AutoClicker:
                              width=20, height=2)
         clear_btn.grid(row=0, column=2, padx=5, pady=5)
         
+        # Save Button
+        save_btn = tk.Button(control_frame, text="Save Recording", 
+                            command=self.save_recording,
+                            bg="#9C27B0", fg="white", font=("Arial", 10, "bold"),
+                            width=20, height=2)
+        save_btn.grid(row=1, column=0, padx=5, pady=5)
+        
+        # Load Button
+        load_btn = tk.Button(control_frame, text="Load Recording", 
+                            command=self.load_recording,
+                            bg="#009688", fg="white", font=("Arial", 10, "bold"),
+                            width=20, height=2)
+        load_btn.grid(row=1, column=1, padx=5, pady=5)
+        
         # Settings Frame
-        settings_frame = tk.LabelFrame(self.root, text="Settings", padx=10, pady=10)
-        settings_frame.pack(padx=10, pady=5, fill="x")
+        settings_frame = tk.LabelFrame(self.root, text="Settings", padx=15, pady=15)
+        settings_frame.pack(padx=20, pady=10, fill="x")
         
         # Loop Count
         tk.Label(settings_frame, text="Loop Count:").grid(row=0, column=0, sticky="w")
@@ -138,16 +153,16 @@ class AutoClicker:
         self.spam_hotkey_btn.grid(row=6, column=1, padx=5, sticky="w")
         
         # Status Frame
-        status_frame = tk.LabelFrame(self.root, text="Status", padx=10, pady=10)
-        status_frame.pack(padx=10, pady=5, fill="x")
+        status_frame = tk.LabelFrame(self.root, text="Status", padx=15, pady=15)
+        status_frame.pack(padx=20, pady=10, fill="x")
         
         self.status_label = tk.Label(status_frame, text="Ready", 
                                      font=("Arial", 10), fg="green")
         self.status_label.pack()
         
         # Event Log
-        log_frame = tk.LabelFrame(self.root, text="Recorded Events", padx=10, pady=10)
-        log_frame.pack(padx=10, pady=5, fill="both", expand=True)
+        log_frame = tk.LabelFrame(self.root, text="Recorded Events", padx=15, pady=15)
+        log_frame.pack(padx=20, pady=10, fill="both", expand=True)
         
         self.event_log = scrolledtext.ScrolledText(log_frame, height=10, 
                                                     font=("Courier", 9))
@@ -534,6 +549,106 @@ class AutoClicker:
         self.recorded_events = []
         self.event_log.delete(1.0, tk.END)
         self.update_status("Recording cleared!", "green")
+    
+    def save_recording(self):
+        """Save recorded events to a JSON file"""
+        if not self.recorded_events:
+            messagebox.showwarning("No Recording", "There are no recorded events to save!")
+            return
+        
+        if self.is_recording:
+            messagebox.showwarning("Recording Active", "Please stop recording before saving!")
+            return
+        
+        if self.is_playing:
+            messagebox.showwarning("Playback Active", "Please stop playback before saving!")
+            return
+        
+        # Ask user for save location
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".aclk",
+            filetypes=[("AutoClicker Recording", "*.aclk"), ("JSON files", "*.json"), ("All files", "*.*")],
+            title="Save Recording As"
+        )
+        
+        if not file_path:
+            return  # User cancelled
+        
+        try:
+            # Save events to JSON file
+            with open(file_path, 'w') as f:
+                json.dump(self.recorded_events, f, indent=2)
+            
+            messagebox.showinfo("Success", f"Recording saved successfully!\n{len(self.recorded_events)} events saved to:\n{os.path.basename(file_path)}")
+            self.update_status(f"Recording saved: {os.path.basename(file_path)}", "green")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save recording:\n{str(e)}")
+            self.update_status(f"Error saving recording: {str(e)}", "red")
+    
+    def load_recording(self):
+        """Load recorded events from a JSON file"""
+        if self.is_recording:
+            messagebox.showwarning("Recording Active", "Please stop recording before loading!")
+            return
+        
+        if self.is_playing:
+            messagebox.showwarning("Playback Active", "Please stop playback before loading!")
+            return
+        
+        # Ask user for file to load
+        file_path = filedialog.askopenfilename(
+            filetypes=[("AutoClicker Recording", "*.aclk"), ("JSON files", "*.json"), ("All files", "*.*")],
+            title="Load Recording"
+        )
+        
+        if not file_path:
+            return  # User cancelled
+        
+        try:
+            # Load events from JSON file
+            with open(file_path, 'r') as f:
+                loaded_events = json.load(f)
+            
+            # Validate the loaded data
+            if not isinstance(loaded_events, list):
+                raise ValueError("Invalid file format: expected a list of events")
+            
+            # Basic validation of event structure
+            for event in loaded_events:
+                if not isinstance(event, dict):
+                    raise ValueError("Invalid event format: expected dictionary")
+                if 'type' not in event or 'timestamp' not in event:
+                    raise ValueError("Invalid event format: missing required fields")
+            
+            # Clear current recording and load new one
+            self.recorded_events = loaded_events
+            self.event_log.delete(1.0, tk.END)
+            
+            # Display loaded events in the log
+            for event in self.recorded_events:
+                timestamp = event['timestamp']
+                if event['type'] == 'mouse_click':
+                    action = "Press" if event['pressed'] else "Release"
+                    log_text = f"[{timestamp:.2f}s] Mouse {action}: {event['button']} at ({event['x']}, {event['y']})\n"
+                elif event['type'] == 'key_press':
+                    log_text = f"[{timestamp:.2f}s] Key Press: {event['key']}\n"
+                elif event['type'] == 'key_release':
+                    log_text = f"[{timestamp:.2f}s] Key Release: {event['key']}\n"
+                else:
+                    log_text = f"[{timestamp:.2f}s] Unknown event type: {event['type']}\n"
+                
+                self.event_log.insert(tk.END, log_text)
+            
+            self.event_log.see(tk.END)
+            
+            messagebox.showinfo("Success", f"Recording loaded successfully!\n{len(self.recorded_events)} events loaded from:\n{os.path.basename(file_path)}")
+            self.update_status(f"Recording loaded: {os.path.basename(file_path)} ({len(self.recorded_events)} events)", "green")
+        except json.JSONDecodeError as e:
+            messagebox.showerror("Error", f"Failed to parse JSON file:\n{str(e)}")
+            self.update_status(f"Error loading recording: Invalid JSON", "red")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load recording:\n{str(e)}")
+            self.update_status(f"Error loading recording: {str(e)}", "red")
     
     def toggle_spam_click(self):
         """Toggle rapid-fire left click spam"""
