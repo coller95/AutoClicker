@@ -11,8 +11,9 @@ class AutoClicker:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoClicker with Recording")
-        self.root.geometry("600x500")
-        self.root.resizable(False, False)
+        self.root.geometry("650x650")
+        self.root.resizable(True, True)
+        self.root.minsize(650, 650)
         
         # Controllers
         self.mouse_controller = MouseController()
