@@ -42,14 +42,10 @@ jobs:
         }
       shell: pwsh
     
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        release_name: AutoClicker ${{ github.ref_name }}
+        name: AutoClicker ${{ github.ref_name }}
         body: |
           ## AutoClicker ${{ github.ref_name }}
           
@@ -58,9 +54,12 @@ jobs:
           
           ### ✨ Features
           - 🎬 Record and replay mouse clicks and keyboard inputs
-          - ⚡ **NEW: Rapid-fire spam click (F3)** - 100 clicks per second!
+          - ⚡ **Rapid-fire spam click (F3)** - 100 clicks per second!
+          - 🎨 **Visual indicators** - Screen border and banner show recording/playing status
+          - ⚙️ **Playback speed control** - Adjust from 0.1x to 10x speed
+          - ⏱️ **Delay between loops** - Set custom delays between repetitions
           - ⌨️ Customizable hotkeys (F1, F2, F3, ESC by default)
-          - 🔁 Loop control (1-100 times or infinite)
+          - 🔁 Loop control (0-100 times or infinite)
           - 📝 Real-time event log with timestamps
           - 🎮 Simple and intuitive GUI
           
@@ -68,7 +67,7 @@ jobs:
           **Recording & Playback:**
           1. Press **F1** to start/stop recording
           2. Perform your clicks and key presses
-          3. Set loop count (0 = infinite)
+          3. Set loop count (0 = infinite) and playback speed
           4. Press **F2** to play/stop recording
           5. Press **ESC** to force stop
           
@@ -84,15 +83,9 @@ jobs:
           
           ---
           **System Requirements:** Windows 7/8/10/11
+        files: |
+          dist/AutoClicker.exe
         draft: false
         prerelease: false
-    
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/AutoClicker.exe
-        asset_name: AutoClicker.exe
-        asset_content_type: application/vnd.microsoft.portable-executable

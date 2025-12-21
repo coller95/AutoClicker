@@ -5,6 +5,24 @@ All notable changes to AutoClicker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-21
+
+### Added
+- **Visual Status Indicators**: Compact banner at top-left shows current mode
+- **Screen Border Frame**: Thin colored border frames entire screen during recording/playing
+- **Window Title Updates**: Title bar shows current status (RECORDING/PLAYING/SPAM CLICKING)
+- **Always-on-top Indicators**: Status banner stays visible over all other windows
+
+### Features
+- 🔴 Red border and banner when recording
+- 🔵 Blue border and banner when playing back
+- 🟠 Orange border and banner when spam clicking
+- Professional recording indicator that's always visible
+
+### Improved
+- Better visual feedback for user awareness
+- Clear indication of active automation state
+
 ## [1.2.0] - 2025-12-21
 
 ### Added

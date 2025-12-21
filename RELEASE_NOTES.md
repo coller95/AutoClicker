@@ -1,25 +1,27 @@
-# AutoClicker v1.2.0 Release
+# AutoClicker v1.3.0 Release
 
 ## Release Date
 December 21, 2025
 
 ## What's New
-### ⚡ Playback Speed Control
-- Adjust replay speed from 0.1x (slower) to 10x (faster)
-- Default: 1.0x (normal speed)
-- Perfect for speeding up or slowing down recorded actions
+### 🎨 Visual Status Indicators
+- **Screen Border Frame**: Thin colored border frames your entire screen
+- **Compact Banner**: Always-on-top status indicator at top-left corner
+- **Window Title Updates**: Shows current mode in title bar
+- Never lose track of what's happening!
 
-### ⏱️ Delay Between Loops
-- Set custom delay (0-60 seconds) between each loop repetition
-- First replay starts immediately, delay applies to subsequent loops
-- Useful for timed automation tasks
+### 🎭 Status Colors
+- 🔴 **Red** - Recording in progress
+- 🔵 **Blue** - Playing back recording
+- 🟠 **Orange** - Spam clicking active
 
-### 🔄 Better Defaults
-- Loop count defaults to 0 (infinite) for convenience
-- Larger, resizable window (650x650) for better usability
+### 📋 Previous Features (v1.2.0)
+- ⚡ Playback speed control (0.1x - 10x)
+- ⏱️ Delay between loops (0-60 seconds)
+- 🔄 Infinite loop as default
 
-### 🆕 From v1.1.0
-- **Rapid-fire spam click mode (F3)** - 100 clicks per second!
+### 📋 Previous Features (v1.1.0)
+- 🆕 **Rapid-fire spam click mode (F3)** - 100 clicks per second!
 
 ## Features
 ✅ Record and replay mouse clicks and keyboard inputs
