@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [## [Unreleased]] - 2025-12-21
+### Added
+- **Draft Releases**: Releases are now created as drafts for safety
+- **Robust Versioning**: Fixed release workflow to correctly read version numbers
+
+## [1.7.0] - 2025-12-21
 
 ### Added
 - **Auto-Versioning**: bump2version + git tags + GitHub Actions workflow
@@ -16,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Developer Experience
 - Single source of truth: `__version__.py`
-- Automatic tags like `v## [Unreleased]`
+- Automatic tags like `v1.7.0`
 
 ## [1.5.0] - 2025-12-21
 
