@@ -89,39 +89,48 @@ class AutoClicker:
         
         tk.Label(settings_frame, text="(0 = Infinite)", fg="gray", font=("Arial", 8)).grid(row=0, column=2, sticky="w")
         
+        # Delay Between Loops
+        tk.Label(settings_frame, text="Delay Between Loops:").grid(row=1, column=0, sticky="w", pady=5)
+        self.delay_spinbox = tk.Spinbox(settings_frame, from_=0, to=60, increment=0.5, width=10, format="%.1f")
+        self.delay_spinbox.grid(row=1, column=1, padx=5)
+        self.delay_spinbox.delete(0, "end")
+        self.delay_spinbox.insert(0, "0.0")
+        
+        tk.Label(settings_frame, text="(seconds)", fg="gray", font=("Arial", 8)).grid(row=1, column=2, sticky="w")
+        
         # Playback Speed
-        tk.Label(settings_frame, text="Playback Speed:").grid(row=1, column=0, sticky="w", pady=5)
+        tk.Label(settings_frame, text="Playback Speed:").grid(row=2, column=0, sticky="w", pady=5)
         self.speed_spinbox = tk.Spinbox(settings_frame, from_=0.1, to=10.0, increment=0.1, width=10, format="%.1f")
-        self.speed_spinbox.grid(row=1, column=1, padx=5)
+        self.speed_spinbox.grid(row=2, column=1, padx=5)
         self.speed_spinbox.delete(0, "end")
         self.speed_spinbox.insert(0, "1.0")
         
-        tk.Label(settings_frame, text="(1.0 = Normal, 2.0 = 2x faster)", fg="gray", font=("Arial", 8)).grid(row=1, column=2, sticky="w")
+        tk.Label(settings_frame, text="(1.0 = Normal, 2.0 = 2x faster)", fg="gray", font=("Arial", 8)).grid(row=2, column=2, sticky="w")
         
         # Hotkey Configuration
-        tk.Label(settings_frame, text="Record Hotkey:").grid(row=2, column=0, sticky="w", pady=5)
+        tk.Label(settings_frame, text="Record Hotkey:").grid(row=3, column=0, sticky="w", pady=5)
         self.record_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_record),
                                            command=lambda: self.capture_hotkey('record'),
                                            width=12)
-        self.record_hotkey_btn.grid(row=2, column=1, padx=5, sticky="w")
+        self.record_hotkey_btn.grid(row=3, column=1, padx=5, sticky="w")
         
-        tk.Label(settings_frame, text="Play/Stop Hotkey:").grid(row=3, column=0, sticky="w", pady=5)
+        tk.Label(settings_frame, text="Play/Stop Hotkey:").grid(row=4, column=0, sticky="w", pady=5)
         self.play_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_play),
                                          command=lambda: self.capture_hotkey('play'),
                                          width=12)
-        self.play_hotkey_btn.grid(row=3, column=1, padx=5, sticky="w")
+        self.play_hotkey_btn.grid(row=4, column=1, padx=5, sticky="w")
         
-        tk.Label(settings_frame, text="Force Stop Hotkey:").grid(row=4, column=0, sticky="w", pady=5)
+        tk.Label(settings_frame, text="Force Stop Hotkey:").grid(row=5, column=0, sticky="w", pady=5)
         self.stop_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_stop),
                                         command=lambda: self.capture_hotkey('stop'),
                                         width=12)
-        self.stop_hotkey_btn.grid(row=4, column=1, padx=5, sticky="w")
+        self.stop_hotkey_btn.grid(row=5, column=1, padx=5, sticky="w")
         
-        tk.Label(settings_frame, text="Spam Click Hotkey:").grid(row=5, column=0, sticky="w", pady=5)
+        tk.Label(settings_frame, text="Spam Click Hotkey:").grid(row=6, column=0, sticky="w", pady=5)
         self.spam_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_spam),
                                         command=lambda: self.capture_hotkey('spam'),
                                         width=12)
-        self.spam_hotkey_btn.grid(row=5, column=1, padx=5, sticky="w")
+        self.spam_hotkey_btn.grid(row=6, column=1, padx=5, sticky="w")
         
         # Status Frame
         status_frame = tk.LabelFrame(self.root, text="Status", padx=10, pady=10)
@@ -390,6 +399,12 @@ class AutoClicker:
                 # Check if we've reached the loop limit (if not infinite)
                 if self.loop_count > 0 and loop >= self.loop_count:
                     break
+                
+                # Add delay between loops (not before the first loop)
+                if loop > 0:
+                    delay = float(self.delay_spinbox.get())
+                    if delay > 0:
+                        time.sleep(delay)
                 
                 loop += 1
                 
