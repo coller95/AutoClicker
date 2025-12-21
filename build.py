@@ -39,11 +39,8 @@ def main():
     cmd = [
         sys.executable,
         "-m", "PyInstaller",
-        "--onefile",
-        "--windowed",
-        "--name", "AutoClicker",
-        "--icon", "NONE",
-        "autoclicker.py"
+        "AutoClicker.spec",
+        "--clean"
     ]
     
     result = subprocess.run(cmd)

@@ -15,7 +15,7 @@ echo.
 
 REM Build with PyInstaller
 echo Building executable...
-python -m PyInstaller --onefile --windowed --name "AutoClicker" --icon NONE autoclicker.py
+python -m PyInstaller AutoClicker.spec --clean
 echo.
 
 if %ERRORLEVEL% EQU 0 (

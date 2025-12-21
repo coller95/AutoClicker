@@ -12,9 +12,14 @@ class AutoClicker:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoClicker with Recording")
-        self.root.geometry("800x800")
+        self.root.geometry("800x500")
         self.root.resizable(True, True)
-        self.root.minsize(800, 800)
+        self.root.minsize(750, 450)
+        
+        # Set window icon
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.ico")
+        if os.path.exists(icon_path):
+            self.root.iconbitmap(icon_path)
         
         # Controllers
         self.mouse_controller = MouseController()
@@ -54,125 +59,146 @@ class AutoClicker:
     def setup_ui(self):
         # Title
         title_label = tk.Label(self.root, text="AutoClicker with Recording", 
-                              font=("Arial", 16, "bold"))
-        title_label.pack(pady=15)
+                              font=("Arial", 12, "bold"))
+        title_label.pack(pady=5)
+        
+        # Main container with left and right panels
+        main_container = tk.Frame(self.root)
+        main_container.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Left Panel - Controls and Settings
+        left_panel = tk.Frame(main_container, width=280)
+        left_panel.pack(side="left", fill="both", padx=(5,2))
+        left_panel.pack_propagate(False)
         
         # Control Frame
-        control_frame = tk.LabelFrame(self.root, text="Controls", padx=15, pady=15)
-        control_frame.pack(padx=20, pady=10, fill="x")
+        control_frame = tk.LabelFrame(left_panel, text="Controls", padx=8, pady=5)
+        control_frame.pack(fill="x", pady=(0,5))
         
         # Record Button
-        self.record_btn = tk.Button(control_frame, text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", 
+        self.record_btn = tk.Button(control_frame, text=f"Record ({self.get_key_name(self.hotkey_record)})", 
                                     command=self.toggle_recording,
-                                    bg="#4CAF50", fg="white", font=("Arial", 10, "bold"),
-                                    width=20, height=2)
-        self.record_btn.grid(row=0, column=0, padx=5, pady=5)
+                                    bg="#4CAF50", fg="white", font=("Arial", 9, "bold"),
+                                    height=1)
+        self.record_btn.pack(fill="x", padx=3, pady=2)
         
         # Play/Stop Toggle Button
-        self.play_btn = tk.Button(control_frame, text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", 
+        self.play_btn = tk.Button(control_frame, text=f"Play ({self.get_key_name(self.hotkey_play)})", 
                                   command=self.toggle_playback,
-                                  bg="#2196F3", fg="white", font=("Arial", 10, "bold"),
-                                  width=20, height=2)
-        self.play_btn.grid(row=0, column=1, padx=5, pady=5)
+                                  bg="#2196F3", fg="white", font=("Arial", 9, "bold"),
+                                  height=1)
+        self.play_btn.pack(fill="x", padx=3, pady=2)
         
         # Clear Button
-        clear_btn = tk.Button(control_frame, text="Clear Recording", 
+        clear_btn = tk.Button(control_frame, text="Clear", 
                              command=self.clear_recording,
-                             bg="#FF9800", fg="white", font=("Arial", 10, "bold"),
-                             width=20, height=2)
-        clear_btn.grid(row=0, column=2, padx=5, pady=5)
+                             bg="#FF9800", fg="white", font=("Arial", 9, "bold"),
+                             height=1)
+        clear_btn.pack(fill="x", padx=3, pady=2)
+        
+        # Save/Load Frame
+        saveload_frame = tk.Frame(control_frame)
+        saveload_frame.pack(fill="x", padx=3, pady=2)
         
         # Save Button
-        save_btn = tk.Button(control_frame, text="Save Recording", 
+        save_btn = tk.Button(saveload_frame, text="Save", 
                             command=self.save_recording,
-                            bg="#9C27B0", fg="white", font=("Arial", 10, "bold"),
-                            width=20, height=2)
-        save_btn.grid(row=1, column=0, padx=5, pady=5)
+                            bg="#9C27B0", fg="white", font=("Arial", 9, "bold"),
+                            height=1)
+        save_btn.pack(side="left", fill="x", expand=True, padx=(0,2))
         
         # Load Button
-        load_btn = tk.Button(control_frame, text="Load Recording", 
+        load_btn = tk.Button(saveload_frame, text="Load", 
                             command=self.load_recording,
-                            bg="#009688", fg="white", font=("Arial", 10, "bold"),
-                            width=20, height=2)
-        load_btn.grid(row=1, column=1, padx=5, pady=5)
+                            bg="#009688", fg="white", font=("Arial", 9, "bold"),
+                            height=1)
+        load_btn.pack(side="left", fill="x", expand=True, padx=(2,0))
         
         # Settings Frame
-        settings_frame = tk.LabelFrame(self.root, text="Settings", padx=15, pady=15)
-        settings_frame.pack(padx=20, pady=10, fill="x")
+        settings_frame = tk.LabelFrame(left_panel, text="Settings", padx=8, pady=5)
+        settings_frame.pack(fill="x", pady=(0,5))
         
         # Loop Count
-        tk.Label(settings_frame, text="Loop Count:").grid(row=0, column=0, sticky="w")
-        self.loop_spinbox = tk.Spinbox(settings_frame, from_=0, to=100, width=10)
-        self.loop_spinbox.grid(row=0, column=1, padx=5)
+        tk.Label(settings_frame, text="Loops:", font=("Arial", 8)).grid(row=0, column=0, sticky="w", pady=2)
+        self.loop_spinbox = tk.Spinbox(settings_frame, from_=0, to=100, width=8, font=("Arial", 8))
+        self.loop_spinbox.grid(row=0, column=1, sticky="ew", pady=2, padx=(5,0))
         self.loop_spinbox.delete(0, "end")
         self.loop_spinbox.insert(0, "0")
-        
-        tk.Label(settings_frame, text="(0 = Infinite)", fg="gray", font=("Arial", 8)).grid(row=0, column=2, sticky="w")
+        tk.Label(settings_frame, text="(0=∞)", fg="gray", font=("Arial", 7)).grid(row=0, column=2, sticky="w", padx=3)
         
         # Delay Between Loops
-        tk.Label(settings_frame, text="Delay Between Loops:").grid(row=1, column=0, sticky="w", pady=5)
-        self.delay_spinbox = tk.Spinbox(settings_frame, from_=0, to=60, increment=0.5, width=10, format="%.1f")
-        self.delay_spinbox.grid(row=1, column=1, padx=5)
+        tk.Label(settings_frame, text="Delay:", font=("Arial", 8)).grid(row=1, column=0, sticky="w", pady=2)
+        self.delay_spinbox = tk.Spinbox(settings_frame, from_=0, to=60, increment=0.5, width=8, format="%.1f", font=("Arial", 8))
+        self.delay_spinbox.grid(row=1, column=1, sticky="ew", pady=2, padx=(5,0))
         self.delay_spinbox.delete(0, "end")
         self.delay_spinbox.insert(0, "0.0")
-        
-        tk.Label(settings_frame, text="(seconds)", fg="gray", font=("Arial", 8)).grid(row=1, column=2, sticky="w")
+        tk.Label(settings_frame, text="(sec)", fg="gray", font=("Arial", 7)).grid(row=1, column=2, sticky="w", padx=3)
         
         # Playback Speed
-        tk.Label(settings_frame, text="Playback Speed:").grid(row=2, column=0, sticky="w", pady=5)
-        self.speed_spinbox = tk.Spinbox(settings_frame, from_=0.1, to=10.0, increment=0.1, width=10, format="%.1f")
-        self.speed_spinbox.grid(row=2, column=1, padx=5)
+        tk.Label(settings_frame, text="Speed:", font=("Arial", 8)).grid(row=2, column=0, sticky="w", pady=2)
+        self.speed_spinbox = tk.Spinbox(settings_frame, from_=0.1, to=10.0, increment=0.1, width=8, format="%.1f", font=("Arial", 8))
+        self.speed_spinbox.grid(row=2, column=1, sticky="ew", pady=2, padx=(5,0))
         self.speed_spinbox.delete(0, "end")
         self.speed_spinbox.insert(0, "1.0")
+        tk.Label(settings_frame, text="(x)", fg="gray", font=("Arial", 7)).grid(row=2, column=2, sticky="w", padx=3)
         
-        tk.Label(settings_frame, text="(1.0 = Normal, 2.0 = 2x faster)", fg="gray", font=("Arial", 8)).grid(row=2, column=2, sticky="w")
+        settings_frame.columnconfigure(1, weight=1)
         
-        # Hotkey Configuration
-        tk.Label(settings_frame, text="Record Hotkey:").grid(row=3, column=0, sticky="w", pady=5)
-        self.record_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_record),
+        # Hotkey Configuration Frame
+        hotkey_frame = tk.LabelFrame(left_panel, text="Hotkeys", padx=8, pady=5)
+        hotkey_frame.pack(fill="x")
+        
+        tk.Label(hotkey_frame, text="Record:", font=("Arial", 8)).grid(row=0, column=0, sticky="w", pady=2)
+        self.record_hotkey_btn = tk.Button(hotkey_frame, text=self.get_key_name(self.hotkey_record),
                                            command=lambda: self.capture_hotkey('record'),
-                                           width=12)
-        self.record_hotkey_btn.grid(row=3, column=1, padx=5, sticky="w")
+                                           width=10, font=("Arial", 8))
+        self.record_hotkey_btn.grid(row=0, column=1, sticky="ew", pady=2, padx=(5,0))
         
-        tk.Label(settings_frame, text="Play/Stop Hotkey:").grid(row=4, column=0, sticky="w", pady=5)
-        self.play_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_play),
+        tk.Label(hotkey_frame, text="Play:", font=("Arial", 8)).grid(row=1, column=0, sticky="w", pady=2)
+        self.play_hotkey_btn = tk.Button(hotkey_frame, text=self.get_key_name(self.hotkey_play),
                                          command=lambda: self.capture_hotkey('play'),
-                                         width=12)
-        self.play_hotkey_btn.grid(row=4, column=1, padx=5, sticky="w")
+                                         width=10, font=("Arial", 8))
+        self.play_hotkey_btn.grid(row=1, column=1, sticky="ew", pady=2, padx=(5,0))
         
-        tk.Label(settings_frame, text="Force Stop Hotkey:").grid(row=5, column=0, sticky="w", pady=5)
-        self.stop_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_stop),
+        tk.Label(hotkey_frame, text="Stop:", font=("Arial", 8)).grid(row=2, column=0, sticky="w", pady=2)
+        self.stop_hotkey_btn = tk.Button(hotkey_frame, text=self.get_key_name(self.hotkey_stop),
                                         command=lambda: self.capture_hotkey('stop'),
-                                        width=12)
-        self.stop_hotkey_btn.grid(row=5, column=1, padx=5, sticky="w")
+                                        width=10, font=("Arial", 8))
+        self.stop_hotkey_btn.grid(row=2, column=1, sticky="ew", pady=2, padx=(5,0))
         
-        tk.Label(settings_frame, text="Spam Click Hotkey:").grid(row=6, column=0, sticky="w", pady=5)
-        self.spam_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_spam),
+        tk.Label(hotkey_frame, text="Spam:", font=("Arial", 8)).grid(row=3, column=0, sticky="w", pady=2)
+        self.spam_hotkey_btn = tk.Button(hotkey_frame, text=self.get_key_name(self.hotkey_spam),
                                         command=lambda: self.capture_hotkey('spam'),
-                                        width=12)
-        self.spam_hotkey_btn.grid(row=6, column=1, padx=5, sticky="w")
+                                        width=10, font=("Arial", 8))
+        self.spam_hotkey_btn.grid(row=3, column=1, sticky="ew", pady=2, padx=(5,0))
+        
+        hotkey_frame.columnconfigure(1, weight=1)
+        
+        # Right Panel - Status and Event Log
+        right_panel = tk.Frame(main_container)
+        right_panel.pack(side="left", fill="both", expand=True, padx=(2,5))
         
         # Status Frame
-        status_frame = tk.LabelFrame(self.root, text="Status", padx=15, pady=15)
-        status_frame.pack(padx=20, pady=10, fill="x")
+        status_frame = tk.LabelFrame(right_panel, text="Status", padx=8, pady=5)
+        status_frame.pack(fill="x", pady=(0,5))
         
         self.status_label = tk.Label(status_frame, text="Ready", 
-                                     font=("Arial", 10), fg="green")
+                                     font=("Arial", 9), fg="green")
         self.status_label.pack()
         
         # Event Log
-        log_frame = tk.LabelFrame(self.root, text="Recorded Events", padx=15, pady=15)
-        log_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        log_frame = tk.LabelFrame(right_panel, text="Recorded Events", padx=8, pady=5)
+        log_frame.pack(fill="both", expand=True)
         
         self.event_log = scrolledtext.ScrolledText(log_frame, height=10, 
-                                                    font=("Courier", 9))
+                                                    font=("Courier", 8), wrap=tk.WORD)
         self.event_log.pack(fill="both", expand=True)
         
-        # Info Label
+        # Info Label at bottom
         self.info_label = tk.Label(self.root, 
                              text=self.get_hotkey_info(),
-                             font=("Arial", 8), fg="gray")
-        self.info_label.pack(pady=5)
+                             font=("Arial", 7), fg="gray")
+        self.info_label.pack(pady=3)
         
         # Setup global hotkeys
         self.setup_hotkeys()
@@ -275,7 +301,7 @@ class AutoClicker:
         self.root.title("🔴 RECORDING - AutoClicker")
         self.show_banner("● RECORDING", "#f44336")
         
-        self.record_btn.config(text=f"Stop Recording ({self.get_key_name(self.hotkey_record)})", bg="#f44336")
+        self.record_btn.config(text=f"Stop ({self.get_key_name(self.hotkey_record)})", bg="#f44336")
         self.update_status("Recording... Click and type!", "red")
         self.event_log.delete(1.0, tk.END)
         
@@ -305,7 +331,7 @@ class AutoClicker:
         self.root.title("AutoClicker with Recording")
         self.hide_banner()
         
-        self.record_btn.config(text=f"Start Recording ({self.get_key_name(self.hotkey_record)})", bg="#4CAF50")
+        self.record_btn.config(text=f"Record ({self.get_key_name(self.hotkey_record)})", bg="#4CAF50")
         self.update_status(f"Recording stopped. {len(self.recorded_events)} events recorded.", "green")
     
     def on_click(self, x, y, button, pressed):
@@ -410,7 +436,7 @@ class AutoClicker:
         self.root.title("▶️ PLAYING - AutoClicker")
         self.show_banner("▶ PLAYING", "#2196F3")
         
-        self.play_btn.config(text=f"Stop Playing ({self.get_key_name(self.hotkey_play)})", bg="#f44336")
+        self.play_btn.config(text=f"Stop ({self.get_key_name(self.hotkey_play)})", bg="#f44336")
         
         if self.loop_count == 0:
             self.update_status("Playing recording (Infinite loops)...", "blue")
@@ -476,7 +502,7 @@ class AutoClicker:
             self.is_playing = False
             self.root.after(0, lambda: self.root.title("AutoClicker with Recording"))
             self.root.after(0, self.hide_banner)
-            self.root.after(0, lambda: self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3"))
+            self.root.after(0, lambda: self.play_btn.config(text=f"Play ({self.get_key_name(self.hotkey_play)})", bg="#2196F3"))
             self.root.after(0, self.update_status, "Playback completed!", "green")
     
     def replay_mouse_click(self, event):
@@ -542,7 +568,7 @@ class AutoClicker:
             self.is_playing = False
             self.root.title("AutoClicker with Recording")
             self.hide_banner()
-            self.play_btn.config(text=f"Play Recording ({self.get_key_name(self.hotkey_play)})", bg="#2196F3")
+            self.play_btn.config(text=f"Play ({self.get_key_name(self.hotkey_play)})", bg="#2196F3")
             self.update_status("Playback stopped!", "orange")
     
     def clear_recording(self):
