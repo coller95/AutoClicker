@@ -18,6 +18,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   bump-version:
     runs-on: windows-latest
@@ -42,10 +46,11 @@ jobs:
     - name: Configure Git
       run: |
         git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
     
     - name: Determine version bump type
       id: bump_type
+      shell: pwsh
       run: |
         $commit_msg = "${{ github.event.head_commit.message }}"
         $bump = "patch"
@@ -66,7 +71,6 @@ jobs:
         
         echo "type=$bump" >> $env:GITHUB_OUTPUT
         Write-Host "Version bump type: $bump"
-      shell: pwsh
     
     - name: Bump version
       run: |
@@ -74,11 +78,11 @@ jobs:
       
     - name: Get new version
       id: version
+      shell: pwsh
       run: |
         $version = (Get-Content __version__.py | Select-String "__version__").ToString().Split('"')[1]
         echo "version=$version" >> $env:GITHUB_OUTPUT
         Write-Host "New version: $version"
-      shell: pwsh
     
     - name: Push changes and tag
       run: |
@@ -86,10 +90,14 @@ jobs:
         git push --tags
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Create Release Summary
-      run: |
-        Write-Host "✅ Version bumped to v${{ steps.version.outputs.version }}"
-        Write-Host "🏷️ Tag created: v${{ steps.version.outputs.version }}"
-        Write-Host "🚀 Changes pushed to repository"
-      shell: pwsh
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
