@@ -24,6 +24,10 @@ class AutoClicker:
         self.recorded_events = []
         self.start_time = None
         
+        # Spam click state
+        self.is_spam_clicking = False
+        self.spam_click_thread = None
+        
         # Listeners
         self.mouse_listener = None
         self.keyboard_listener = None
@@ -36,6 +40,7 @@ class AutoClicker:
         self.hotkey_record = keyboard.Key.f1
         self.hotkey_play = keyboard.Key.f2
         self.hotkey_stop = keyboard.Key.esc
+        self.hotkey_spam = keyboard.Key.f3
         self.capturing_hotkey = None
         
         self.setup_ui()
@@ -103,6 +108,12 @@ class AutoClicker:
                                         width=12)
         self.stop_hotkey_btn.grid(row=3, column=1, padx=5, sticky="w")
         
+        tk.Label(settings_frame, text="Spam Click Hotkey:").grid(row=4, column=0, sticky="w", pady=5)
+        self.spam_hotkey_btn = tk.Button(settings_frame, text=self.get_key_name(self.hotkey_spam),
+                                        command=lambda: self.capture_hotkey('spam'),
+                                        width=12)
+        self.spam_hotkey_btn.grid(row=4, column=1, padx=5, sticky="w")
+        
         # Status Frame
         status_frame = tk.LabelFrame(self.root, text="Status", padx=10, pady=10)
         status_frame.pack(padx=10, pady=5, fill="x")
@@ -139,7 +150,8 @@ class AutoClicker:
         rec = self.get_key_name(self.hotkey_record)
         play = self.get_key_name(self.hotkey_play)
         stop = self.get_key_name(self.hotkey_stop)
-        return f"Hotkeys: {rec}=Toggle Record | {play}=Toggle Play/Stop | {stop}=Force Stop | Click/Type to record"
+        spam = self.get_key_name(self.hotkey_spam)
+        return f"Hotkeys: {rec}=Toggle Record | {play}=Toggle Play/Stop | {stop}=Force Stop | {spam}=Toggle Spam Click"
     
     def capture_hotkey(self, hotkey_type):
         """Start capturing a new hotkey"""
@@ -151,6 +163,8 @@ class AutoClicker:
             self.play_hotkey_btn.config(text="Press key...", bg="yellow")
         elif hotkey_type == 'stop':
             self.stop_hotkey_btn.config(text="Press key...", bg="yellow")
+        elif hotkey_type == 'spam':
+            self.spam_hotkey_btn.config(text="Press key...", bg="yellow")
         
         self.update_status("Press a key to set as hotkey...", "blue")
     
@@ -165,6 +179,9 @@ class AutoClicker:
         elif hotkey_type == 'stop':
             self.hotkey_stop = key
             self.stop_hotkey_btn.config(text=self.get_key_name(key), bg="SystemButtonFace")
+        elif hotkey_type == 'spam':
+            self.hotkey_spam = key
+            self.spam_hotkey_btn.config(text=self.get_key_name(key), bg="SystemButtonFace")
         
         self.capturing_hotkey = None
         self.info_label.config(text=self.get_hotkey_info())
@@ -193,6 +210,8 @@ class AutoClicker:
                 elif key == self.hotkey_stop:
                     if self.is_playing:
                         self.stop_playback()
+                elif key == self.hotkey_spam:
+                    self.toggle_spam_click()
             except:
                 pass
         
@@ -468,12 +487,48 @@ class AutoClicker:
         self.event_log.delete(1.0, tk.END)
         self.update_status("Recording cleared!", "green")
     
+    def toggle_spam_click(self):
+        """Toggle rapid-fire left click spam"""
+        if self.is_spam_clicking:
+            self.stop_spam_click()
+        else:
+            self.start_spam_click()
+    
+    def start_spam_click(self):
+        """Start rapid-fire left clicking"""
+        if self.is_recording:
+            self.update_status("Cannot spam click while recording!", "red")
+            return
+        
+        self.is_spam_clicking = True
+        self.update_status(f"Spam clicking! Press {self.get_key_name(self.hotkey_spam)} to stop", "red")
+        
+        self.spam_click_thread = threading.Thread(target=self.spam_click_worker)
+        self.spam_click_thread.daemon = True
+        self.spam_click_thread.start()
+    
+    def spam_click_worker(self):
+        """Worker thread for rapid-fire clicking"""
+        try:
+            while self.is_spam_clicking:
+                self.mouse_controller.click(Button.left, 1)
+                time.sleep(0.01)  # 10ms delay = 100 clicks per second
+        except Exception as e:
+            self.root.after(0, self.update_status, f"Error: {str(e)}", "red")
+    
+    def stop_spam_click(self):
+        """Stop spam clicking"""
+        if self.is_spam_clicking:
+            self.is_spam_clicking = False
+            self.update_status("Spam clicking stopped!", "green")
+    
     def update_status(self, message, color="black"):
         self.status_label.config(text=message, fg=color)
     
     def on_closing(self):
         self.is_recording = False
         self.is_playing = False
+        self.is_spam_clicking = False
         
         if self.mouse_listener:
             self.mouse_listener.stop()

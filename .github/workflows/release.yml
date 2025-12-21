@@ -58,17 +58,23 @@ jobs:
           
           ### ✨ Features
           - 🎬 Record and replay mouse clicks and keyboard inputs
-          - ⌨️ Customizable hotkeys (F1, F2, ESC by default)
+          - ⚡ **NEW: Rapid-fire spam click (F3)** - 100 clicks per second!
+          - ⌨️ Customizable hotkeys (F1, F2, F3, ESC by default)
           - 🔁 Loop control (1-100 times or infinite)
           - 📝 Real-time event log with timestamps
           - 🎮 Simple and intuitive GUI
           
           ### 🎯 Quick Start
+          **Recording & Playback:**
           1. Press **F1** to start/stop recording
           2. Perform your clicks and key presses
           3. Set loop count (0 = infinite)
           4. Press **F2** to play/stop recording
           5. Press **ESC** to force stop
+          
+          **Spam Click Mode:**
+          - Press **F3** to toggle rapid-fire left clicking
+          - Perfect for saving time with repetitive clicking
           
           ### 📚 Documentation
           See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation
