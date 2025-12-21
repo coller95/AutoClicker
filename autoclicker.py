@@ -209,6 +209,24 @@ class AutoClicker:
             return key.name.upper()
         return str(key).replace('Key.', '').upper()
     
+    def parse_key_name(self, key_name):
+        """Parse a key name string back to a keyboard Key object"""
+        key_name_upper = key_name.upper()
+        
+        # Try to match keyboard.Key attributes
+        for attr_name in dir(keyboard.Key):
+            if not attr_name.startswith('_'):
+                attr = getattr(keyboard.Key, attr_name)
+                if hasattr(attr, 'name') and attr.name.upper() == key_name_upper:
+                    return attr
+        
+        # If not found in keyboard.Key, try as KeyCode
+        try:
+            return keyboard.KeyCode.from_char(key_name.lower())
+        except:
+            # Default to F1 if parsing fails
+            return keyboard.Key.f1
+    
     def get_hotkey_info(self):
         """Get hotkey information string"""
         rec = self.get_key_name(self.hotkey_record)
@@ -577,7 +595,7 @@ class AutoClicker:
         self.update_status("Recording cleared!", "green")
     
     def save_recording(self):
-        """Save recorded events to a JSON file"""
+        """Save recorded events and configuration to a JSON file"""
         if not self.recorded_events:
             messagebox.showwarning("No Recording", "There are no recorded events to save!")
             return
@@ -601,18 +619,34 @@ class AutoClicker:
             return  # User cancelled
         
         try:
-            # Save events to JSON file
-            with open(file_path, 'w') as f:
-                json.dump(self.recorded_events, f, indent=2)
+            # Prepare configuration data
+            config_data = {
+                "events": self.recorded_events,
+                "config": {
+                    "loops": int(self.loop_spinbox.get()),
+                    "delay": float(self.delay_spinbox.get()),
+                    "speed": float(self.speed_spinbox.get()),
+                    "hotkeys": {
+                        "record": self.get_key_name(self.hotkey_record),
+                        "play": self.get_key_name(self.hotkey_play),
+                        "stop": self.get_key_name(self.hotkey_stop),
+                        "spam": self.get_key_name(self.hotkey_spam)
+                    }
+                }
+            }
             
-            messagebox.showinfo("Success", f"Recording saved successfully!\n{len(self.recorded_events)} events saved to:\n{os.path.basename(file_path)}")
-            self.update_status(f"Recording saved: {os.path.basename(file_path)}", "green")
+            # Save events and config to JSON file
+            with open(file_path, 'w') as f:
+                json.dump(config_data, f, indent=2)
+            
+            messagebox.showinfo("Success", f"Recording and config saved successfully!\n{len(self.recorded_events)} events saved to:\n{os.path.basename(file_path)}")
+            self.update_status(f"Recording and config saved: {os.path.basename(file_path)}", "green")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save recording:\n{str(e)}")
             self.update_status(f"Error saving recording: {str(e)}", "red")
     
     def load_recording(self):
-        """Load recorded events from a JSON file"""
+        """Load recorded events and configuration from a JSON file"""
         if self.is_recording:
             messagebox.showwarning("Recording Active", "Please stop recording before loading!")
             return
@@ -631,11 +665,53 @@ class AutoClicker:
             return  # User cancelled
         
         try:
-            # Load events from JSON file
+            # Load data from JSON file
             with open(file_path, 'r') as f:
-                loaded_events = json.load(f)
+                loaded_data = json.load(f)
             
-            # Validate the loaded data
+            # Check if it's the new format (with config) or old format (just events)
+            if isinstance(loaded_data, dict) and 'events' in loaded_data:
+                # New format: has events and config
+                loaded_events = loaded_data['events']
+                config = loaded_data.get('config', {})
+                
+                # Load timing configuration if available
+                if 'loops' in config:
+                    self.loop_spinbox.delete(0, "end")
+                    self.loop_spinbox.insert(0, str(config['loops']))
+                if 'delay' in config:
+                    self.delay_spinbox.delete(0, "end")
+                    self.delay_spinbox.insert(0, str(config['delay']))
+                if 'speed' in config:
+                    self.speed_spinbox.delete(0, "end")
+                    self.speed_spinbox.insert(0, str(config['speed']))
+                
+                # Load hotkey configuration if available
+                if 'hotkeys' in config:
+                    hotkeys = config['hotkeys']
+                    if 'record' in hotkeys:
+                        self.hotkey_record = self.parse_key_name(hotkeys['record'])
+                        self.record_hotkey_btn.config(text=hotkeys['record'])
+                        self.record_btn.config(text=f"Record ({hotkeys['record']})")
+                    if 'play' in hotkeys:
+                        self.hotkey_play = self.parse_key_name(hotkeys['play'])
+                        self.play_hotkey_btn.config(text=hotkeys['play'])
+                        self.play_btn.config(text=f"Play ({hotkeys['play']})")
+                    if 'stop' in hotkeys:
+                        self.hotkey_stop = self.parse_key_name(hotkeys['stop'])
+                        self.stop_hotkey_btn.config(text=hotkeys['stop'])
+                    if 'spam' in hotkeys:
+                        self.hotkey_spam = self.parse_key_name(hotkeys['spam'])
+                        self.spam_hotkey_btn.config(text=hotkeys['spam'])
+                    
+                    # Update hotkey info and restart listeners
+                    self.info_label.config(text=self.get_hotkey_info())
+                    self.setup_hotkeys()
+            else:
+                # Old format: just events
+                loaded_events = loaded_data
+            
+            # Validate the loaded events
             if not isinstance(loaded_events, list):
                 raise ValueError("Invalid file format: expected a list of events")
             
@@ -667,8 +743,8 @@ class AutoClicker:
             
             self.event_log.see(tk.END)
             
-            messagebox.showinfo("Success", f"Recording loaded successfully!\n{len(self.recorded_events)} events loaded from:\n{os.path.basename(file_path)}")
-            self.update_status(f"Recording loaded: {os.path.basename(file_path)} ({len(self.recorded_events)} events)", "green")
+            messagebox.showinfo("Success", f"Recording and config loaded successfully!\n{len(self.recorded_events)} events loaded from:\n{os.path.basename(file_path)}")
+            self.update_status(f"Recording and config loaded: {os.path.basename(file_path)} ({len(self.recorded_events)} events)", "green")
         except json.JSONDecodeError as e:
             messagebox.showerror("Error", f"Failed to parse JSON file:\n{str(e)}")
             self.update_status(f"Error loading recording: Invalid JSON", "red")
