@@ -99,12 +99,37 @@ jobs:
     - name: Build Executable
       run: python build.py
 
+    - name: Extract Release Notes
+      shell: python
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        import os
+        import re
+        
+        version = os.environ.get("VERSION")
+        with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        # Find content between "## [Version]..." and the next "## ["
+        pattern = f"## \[{version}\].*?\n(.*?)(?=\n## \[|$)"
+        match = re.search(pattern, content, re.DOTALL)
+        
+        if match:
+            body = match.group(1).strip()
+            with open("release_body.md", "w", encoding="utf-8") as f:
+                f.write(body)
+        else:
+            print(f"No changelog entry found for v{version}")
+            with open("release_body.md", "w") as f:
+                f.write(f"Release v{version}")
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.version.outputs.version }}
         name: Release v${{ steps.version.outputs.version }}
-        generate_release_notes: true
+        body_path: release_body.md
         draft: true
         prerelease: false
         files: dist/AutoClicker.exe
