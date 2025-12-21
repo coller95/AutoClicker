@@ -1,14 +1,25 @@
-# AutoClicker v1.1.0 Release
+# AutoClicker v1.2.0 Release
 
 ## Release Date
 December 21, 2025
 
 ## What's New
-### 🆕 Spam Click Feature
-- Press **F3** to toggle rapid-fire left clicking (100 clicks per second)
-- Perfect for saving time when repetitive clicking is needed
-- Configurable hotkey in settings panel
-- Visual status indicator shows when active
+### ⚡ Playback Speed Control
+- Adjust replay speed from 0.1x (slower) to 10x (faster)
+- Default: 1.0x (normal speed)
+- Perfect for speeding up or slowing down recorded actions
+
+### ⏱️ Delay Between Loops
+- Set custom delay (0-60 seconds) between each loop repetition
+- First replay starts immediately, delay applies to subsequent loops
+- Useful for timed automation tasks
+
+### 🔄 Better Defaults
+- Loop count defaults to 0 (infinite) for convenience
+- Larger, resizable window (650x650) for better usability
+
+### 🆕 From v1.1.0
+- **Rapid-fire spam click mode (F3)** - 100 clicks per second!
 
 ## Features
 ✅ Record and replay mouse clicks and keyboard inputs

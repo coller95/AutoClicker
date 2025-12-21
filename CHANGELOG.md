@@ -5,6 +5,22 @@ All notable changes to AutoClicker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-21
+
+### Added
+- **Playback Speed Control**: Adjust replay speed from 0.1x to 10x (default 1.0x)
+- **Delay Between Loops**: Set delay in seconds between loop repetitions (0-60 seconds)
+- **Infinite Loop Default**: Loop count now defaults to 0 (infinite) for convenience
+- **Resizable Window**: Window is now resizable with larger default size (650x650)
+
+### Improved
+- UI layout expanded to accommodate new controls
+- Better default settings for typical use cases
+
+### Fixed
+- UI elements no longer fall outside window bounds
+- Window minimum size set to prevent layout issues
+
 ## [1.1.0] - 2025-12-21
 
 ### Added
