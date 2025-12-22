@@ -191,9 +191,11 @@ class EventRecorder:
                         return (f'num_{char}', f'NUM {char}')
                     else:
                         return (char, char)
-                elif char == '.':
+                elif char in '.,':
+                    # Period or comma - could be numpad decimal (varies by locale)
+                    # In some locales numpad decimal outputs comma instead of period
                     if vk is None:
-                        return ('num_decimal', 'NUM .')
+                        return ('num_decimal', f'NUM {char}')
                     else:
                         return (char, char)
                 elif char == '+':
