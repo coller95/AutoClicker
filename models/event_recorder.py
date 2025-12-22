@@ -8,6 +8,9 @@ import time
 
 from utils.key_utils import get_key_info, KeyInfo
 
+# Set to True to enable debug logging
+DEBUG = False
+
 
 class EventRecorder:
     """Manages recording and playback of mouse and keyboard events."""
@@ -383,18 +386,34 @@ class EventRecorder:
         self._pressed_mouse_buttons.clear()
         self._pressed_keys.clear()
         
+        # DEBUG: Log playback settings
+        if DEBUG:
+            print(f"[DEBUG] _playback_worker started")
+            print(f"[DEBUG] self.loop_count = {self.loop_count} (type: {type(self.loop_count)})")
+            print(f"[DEBUG] self.loop_delay = {self.loop_delay}")
+            print(f"[DEBUG] self.playback_speed = {self.playback_speed}")
+            print(f"[DEBUG] Number of events: {len(self.recorded_events)}")
+        
         try:
             loop = 0
             while True:
+                if DEBUG:
+                    print(f"[DEBUG] Loop iteration: loop={loop}, loop_count={self.loop_count}")
                 if not self.is_playing:
+                    if DEBUG:
+                        print(f"[DEBUG] Breaking: is_playing is False")
                     break
                 
                 # Check if we've reached the loop limit (if not infinite)
                 if self.loop_count > 0 and loop >= self.loop_count:
+                    if DEBUG:
+                        print(f"[DEBUG] Breaking: loop ({loop}) >= loop_count ({self.loop_count})")
                     break
                 
                 # Add delay between loops (not before the first loop)
                 if loop > 0 and self.loop_delay > 0:
+                    if DEBUG:
+                        print(f"[DEBUG] Sleeping for loop_delay: {self.loop_delay}")
                     time.sleep(self.loop_delay)
                 
                 loop += 1
