@@ -1,3 +1,8 @@
 pynput==1.7.6
 pyinstaller
 bump2version
+
+# Testing dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
