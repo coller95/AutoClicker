@@ -23,8 +23,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: windows-latest
+    # Skip if commit message starts with "Bump version"
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'Bump version')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest tests/ -v --tb=short
+
   bump-version:
     runs-on: windows-latest
+    needs: test
     # Skip if commit message contains [skip-version] or starts with "Bump version"
     if: github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[skip-version]') && !startsWith(github.event.head_commit.message, 'Bump version'))
     
@@ -95,9 +117,6 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install pyinstaller
-
-    - name: Run tests
-      run: pytest tests/ -v --tb=short
 
     - name: Build Executable
       run: python build.py
