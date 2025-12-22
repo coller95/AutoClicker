@@ -1,12 +1,13 @@
 """Event playback functionality - replays recorded mouse and keyboard events."""
 
 from pynput.mouse import Button, Controller as MouseController
-from pynput.keyboard import Key, Controller as KeyboardController
+from pynput.keyboard import Key, KeyCode, Controller as KeyboardController
 import threading
 import time
 from typing import List, Callable, Optional, Set
 
 from utils.constants import Defaults
+from utils.key_utils import detect_environment, WINDOWS_NUMPAD_NAME_TO_VK
 
 
 class Player:
@@ -267,6 +268,8 @@ class Player:
     
     def _parse_key(self, key_name: str):
         """Parse a key name to a pynput key."""
+        env = detect_environment()
+        
         # Numpad keys
         numpad_chars = {
             'num_0': '0', 'num_1': '1', 'num_2': '2', 'num_3': '3',
@@ -277,6 +280,12 @@ class Player:
         }
         
         if key_name in numpad_chars:
+            # On Windows, using the VK code ensures it's treated as a numpad key
+            if env == 'windows' and key_name in WINDOWS_NUMPAD_NAME_TO_VK:
+                vk = WINDOWS_NUMPAD_NAME_TO_VK[key_name]
+                return KeyCode.from_vk(vk)
+            
+            # Fallback for other platforms or if VK not found
             return numpad_chars[key_name]
         
         if key_name == 'num_enter':
