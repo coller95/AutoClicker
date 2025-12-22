@@ -336,7 +336,13 @@ class MainWindow:
         
         if self.event_recorder.start_recording():
             self.root.title(f"🔴 RECORDING - AutoClicker v{__version__}")
-            self.banner_manager.show_banner("● RECORDING", "#f44336")
+            stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_stop)
+            record_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_record)
+            self.banner_manager.show_banner(
+                "● RECORDING", 
+                "#f44336",
+                f"Press {stop_key} or {record_key} to stop"
+            )
             self.record_btn.config(
                 text=f"Stop ({self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_record)})", 
                 bg="#f44336"
@@ -372,7 +378,14 @@ class MainWindow:
         
         if self.event_recorder.start_playback(loop_count, loop_delay, playback_speed):
             self.root.title(f"▶️ PLAYING - AutoClicker v{__version__}")
-            self.banner_manager.show_banner("▶ PLAYING", "#2196F3")
+            stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_stop)
+            loop_info = f"Loop: {loop_count}x" if loop_count > 0 else "Loop: ∞"
+            speed_info = f" | Speed: {playback_speed}x" if playback_speed != 1.0 else ""
+            self.banner_manager.show_banner(
+                "▶ PLAYING", 
+                "#2196F3",
+                f"{loop_info}{speed_info} | Press {stop_key} to stop"
+            )
             self.play_btn.config(
                 text=f"Stop ({self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_play)})", 
                 bg="#f44336"
@@ -494,7 +507,12 @@ class MainWindow:
         
         if self.spam_clicker.start_spam_click():
             self.root.title(f"⚡ SPAM CLICKING - AutoClicker v{__version__}")
-            self.banner_manager.show_banner("⚡ SPAM CLICKING", "#FF9800")
+            stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_spam)
+            self.banner_manager.show_banner(
+                "⚡ SPAM CLICKING", 
+                "#FF9800",
+                f"Press {stop_key} to stop"
+            )
             self.update_status(
                 f"Spam clicking! Press {self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_spam)} to stop", 
                 "red"
@@ -507,8 +525,33 @@ class MainWindow:
             self.banner_manager.hide_banner()
     
     def update_status(self, message, color="black"):
-        """Update status label."""
+        """Update status label and show in banner if active."""
         self.status_label.config(text=message, fg=color)
+        
+        # Also show in banner if there's an active banner
+        if self.banner_manager.banner_windows:
+            # Determine default status based on current state
+            default_status = None
+            if self.event_recorder.is_recording:
+                stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_stop)
+                record_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_record)
+                default_status = f"Press {stop_key} or {record_key} to stop"
+            elif self.event_recorder.is_playing:
+                stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_stop)
+                loop_count = int(self.loop_spinbox.get())
+                playback_speed = float(self.speed_spinbox.get())
+                loop_info = f"Loop: {loop_count}x" if loop_count > 0 else "Loop: ∞"
+                speed_info = f" | Speed: {playback_speed}x" if playback_speed != 1.0 else ""
+                default_status = f"{loop_info}{speed_info} | Press {stop_key} to stop"
+            elif self.spam_clicker.is_active():
+                stop_key = self.hotkey_manager.get_key_name(self.hotkey_manager.hotkey_spam)
+                default_status = f"Press {stop_key} to stop"
+            
+            # Show the status message in banner, revert to default after 2 seconds
+            self.banner_manager.update_status(f"⚠ {message}", default_status, duration=2500)
+        elif color == "red":
+            # Show temporary warning banner when no active banner
+            self.banner_manager.show_status_message(f"⚠ {message}", "#d32f2f", duration=2000)
     
     def on_closing(self):
         """Cleanup when closing the application."""

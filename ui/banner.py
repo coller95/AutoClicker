@@ -10,6 +10,9 @@ class BannerManager:
         self.root = root
         self.banner_windows = []  # List of banner windows (one per monitor)
         self.border_frames = []
+        self.status_labels = []  # Status labels for updating messages
+        self.current_bg_color = None
+        self.auto_hide_id = None  # For auto-hiding status messages
     
     def _get_all_monitors(self):
         """Get geometry of all monitors.
@@ -35,14 +38,22 @@ class BannerManager:
         
         return monitors
     
-    def show_banner(self, text, bg_color):
+    def show_banner(self, text, bg_color, status_text=None):
         """Show compact always-on-top banner and borders on ALL monitors.
         
         The banner appears at the top-left of each monitor, and colored borders
         surround each monitor's edges.
+        
+        Args:
+            text: Main banner text (e.g., "● RECORDING")
+            bg_color: Background color for banner and borders
+            status_text: Optional status line (e.g., "Press F6 to stop")
         """
         if self.banner_windows or self.border_frames:
             self.hide_banner()
+        
+        self.current_bg_color = bg_color
+        self.status_labels = []
         
         # Get all monitors
         monitors = self._get_all_monitors()
@@ -53,13 +64,24 @@ class BannerManager:
             banner_window = tk.Toplevel(self.root)
             banner_window.overrideredirect(True)  # Remove window decorations
             banner_window.attributes('-topmost', True)  # Always on top
+            banner_window.configure(bg=bg_color)
             
-            # Create compact banner label
-            banner_label = tk.Label(banner_window, text=text,
-                                   font=("Arial", 11, "bold"),
-                                   bg=bg_color, fg="white",
-                                   padx=15, pady=8)
-            banner_label.pack()
+            # Create frame to hold labels
+            banner_frame = tk.Frame(banner_window, bg=bg_color)
+            banner_frame.pack(padx=12, pady=8)
+            
+            # Main banner label
+            banner_label = tk.Label(banner_frame, text=text,
+                                   font=("Arial", 12, "bold"),
+                                   bg=bg_color, fg="white")
+            banner_label.pack(anchor="w")
+            
+            # Status line (smaller, below main text)
+            status_label = tk.Label(banner_frame, text=status_text or "",
+                                   font=("Arial", 9),
+                                   bg=bg_color, fg="white")
+            status_label.pack(anchor="w")
+            self.status_labels.append(status_label)
             
             # Update geometry after packing to get actual size
             banner_window.update_idletasks()
@@ -102,14 +124,111 @@ class BannerManager:
             right_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x + mon_width - border_thickness}+{mon_y}")
             self.border_frames.append(right_frame)
     
+    def update_status(self, message, default_status=None, duration=2000):
+        """Update the status text on all banners.
+        
+        Args:
+            message: The status message to display
+            default_status: The default status to revert to after duration (optional)
+            duration: Time in ms before reverting to default_status (default 2000ms)
+        """
+        if not self.banner_windows:
+            return
+        
+        # Cancel any pending auto-hide
+        if self.auto_hide_id:
+            self.root.after_cancel(self.auto_hide_id)
+            self.auto_hide_id = None
+        
+        # Update all status labels
+        for label in self.status_labels:
+            try:
+                label.config(text=message)
+            except:
+                pass
+        
+        # Update window geometry to fit new text
+        for window in self.banner_windows:
+            try:
+                window.update_idletasks()
+            except:
+                pass
+        
+        # If default_status provided, revert after duration
+        if default_status is not None:
+            self.auto_hide_id = self.root.after(duration, lambda: self._revert_status(default_status))
+    
+    def _revert_status(self, default_status):
+        """Revert status labels to default text."""
+        self.auto_hide_id = None
+        for label in self.status_labels:
+            try:
+                label.config(text=default_status)
+            except:
+                pass
+        # Update window geometry
+        for window in self.banner_windows:
+            try:
+                window.update_idletasks()
+            except:
+                pass
+    
+    def show_status_message(self, message, color="#333333", duration=2000):
+        """Show a temporary status message banner (when no action banner is active).
+        
+        Args:
+            message: The message to display
+            color: Background color (default dark gray)
+            duration: Time in ms before auto-hiding (default 2000ms)
+        """
+        # Only show if no active banner
+        if self.banner_windows:
+            return
+        
+        # Cancel any pending auto-hide
+        if self.auto_hide_id:
+            self.root.after_cancel(self.auto_hide_id)
+            self.auto_hide_id = None
+        
+        # Get all monitors
+        monitors = self._get_all_monitors()
+        
+        for mon_x, mon_y, mon_width, mon_height in monitors:
+            # Create compact message banner
+            banner_window = tk.Toplevel(self.root)
+            banner_window.overrideredirect(True)
+            banner_window.attributes('-topmost', True)
+            banner_window.configure(bg=color)
+            
+            # Message label
+            msg_label = tk.Label(banner_window, text=message,
+                                font=("Arial", 10, "bold"),
+                                bg=color, fg="white",
+                                padx=15, pady=8)
+            msg_label.pack()
+            
+            banner_window.update_idletasks()
+            banner_window.geometry(f"+{mon_x + 10}+{mon_y + 10}")
+            self.banner_windows.append(banner_window)
+        
+        # Auto-hide after duration
+        self.auto_hide_id = self.root.after(duration, self.hide_banner)
+    
     def hide_banner(self):
         """Hide and destroy all banner windows and border frames."""
+        # Cancel any pending auto-hide
+        if self.auto_hide_id:
+            self.root.after_cancel(self.auto_hide_id)
+            self.auto_hide_id = None
+        
         for banner in self.banner_windows:
             try:
                 banner.destroy()
             except:
                 pass
         self.banner_windows = []
+        self.status_labels = []
+        self.current_bg_color = None
         
         for frame in self.border_frames:
             try:
