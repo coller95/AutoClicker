@@ -1,6 +1,7 @@
 pynput==1.7.6
 pyinstaller
 bump2version
+screeninfo>=0.8.1  # Multi-monitor support
 
 # Testing dependencies
 pytest>=7.0.0

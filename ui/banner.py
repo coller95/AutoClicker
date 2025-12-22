@@ -11,12 +11,61 @@ class BannerManager:
         self.banner_window = None
         self.border_frames = []
     
+    def _get_current_monitor_geometry(self):
+        """Get the geometry of the monitor where the main window is located.
+        
+        Returns:
+            tuple: (x, y, width, height) of the current monitor
+        """
+        # Get main window position
+        win_x = self.root.winfo_x()
+        win_y = self.root.winfo_y()
+        win_center_x = win_x + self.root.winfo_width() // 2
+        win_center_y = win_y + self.root.winfo_height() // 2
+        
+        # Try to use screeninfo library for accurate multi-monitor detection
+        try:
+            from screeninfo import get_monitors
+            monitors = get_monitors()
+            
+            # Find which monitor contains the center of the main window
+            for monitor in monitors:
+                if (monitor.x <= win_center_x < monitor.x + monitor.width and
+                    monitor.y <= win_center_y < monitor.y + monitor.height):
+                    return (monitor.x, monitor.y, monitor.width, monitor.height)
+            
+            # If window center not in any monitor, find the closest one
+            if monitors:
+                # Default to the monitor that contains the window's top-left corner
+                for monitor in monitors:
+                    if (monitor.x <= win_x < monitor.x + monitor.width and
+                        monitor.y <= win_y < monitor.y + monitor.height):
+                        return (monitor.x, monitor.y, monitor.width, monitor.height)
+                
+                # Fallback to first monitor
+                m = monitors[0]
+                return (m.x, m.y, m.width, m.height)
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        
+        # Fallback: use tkinter's screen dimensions (primary monitor only)
+        # This is the legacy behavior for systems without screeninfo
+        return (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+    
     def show_banner(self, text, bg_color):
-        """Show compact always-on-top banner at top-left with screen border."""
+        """Show compact always-on-top banner at top-left with screen border.
+        
+        The banner and borders are shown on the monitor where the main window is located.
+        """
         if self.banner_window:
             self.hide_banner()
         
-        # Create compact banner at top-left
+        # Get the geometry of the current monitor
+        mon_x, mon_y, mon_width, mon_height = self._get_current_monitor_geometry()
+        
+        # Create compact banner at top-left of current monitor
         self.banner_window = tk.Toplevel(self.root)
         self.banner_window.overrideredirect(True)  # Remove window decorations
         self.banner_window.attributes('-topmost', True)  # Always on top
@@ -31,12 +80,10 @@ class BannerManager:
         # Update geometry after packing to get actual size
         self.banner_window.update_idletasks()
         
-        # Position at top-left corner
-        self.banner_window.geometry(f"+10+10")
+        # Position at top-left corner of current monitor
+        self.banner_window.geometry(f"+{mon_x + 10}+{mon_y + 10}")
         
-        # Create thin border frames around screen edges
-        screen_width = self.banner_window.winfo_screenwidth()
-        screen_height = self.banner_window.winfo_screenheight()
+        # Create thin border frames around current monitor edges
         border_thickness = 4
         
         # Top border
@@ -44,7 +91,7 @@ class BannerManager:
         top_frame.overrideredirect(True)
         top_frame.attributes('-topmost', True)
         top_frame.configure(bg=bg_color)
-        top_frame.geometry(f"{screen_width}x{border_thickness}+0+0")
+        top_frame.geometry(f"{mon_width}x{border_thickness}+{mon_x}+{mon_y}")
         self.border_frames.append(top_frame)
         
         # Bottom border
@@ -52,7 +99,7 @@ class BannerManager:
         bottom_frame.overrideredirect(True)
         bottom_frame.attributes('-topmost', True)
         bottom_frame.configure(bg=bg_color)
-        bottom_frame.geometry(f"{screen_width}x{border_thickness}+0+{screen_height-border_thickness}")
+        bottom_frame.geometry(f"{mon_width}x{border_thickness}+{mon_x}+{mon_y + mon_height - border_thickness}")
         self.border_frames.append(bottom_frame)
         
         # Left border
@@ -60,7 +107,7 @@ class BannerManager:
         left_frame.overrideredirect(True)
         left_frame.attributes('-topmost', True)
         left_frame.configure(bg=bg_color)
-        left_frame.geometry(f"{border_thickness}x{screen_height}+0+0")
+        left_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x}+{mon_y}")
         self.border_frames.append(left_frame)
         
         # Right border
@@ -68,7 +115,7 @@ class BannerManager:
         right_frame.overrideredirect(True)
         right_frame.attributes('-topmost', True)
         right_frame.configure(bg=bg_color)
-        right_frame.geometry(f"{border_thickness}x{screen_height}+{screen_width-border_thickness}+0")
+        right_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x + mon_width - border_thickness}+{mon_y}")
         self.border_frames.append(right_frame)
     
     def hide_banner(self):
