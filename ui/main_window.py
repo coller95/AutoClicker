@@ -54,7 +54,8 @@ class MainWindow:
         self.event_recorder.set_callbacks(
             on_event=self._on_event_recorded,
             on_status=self._update_status_threadsafe,
-            on_playback_complete=self._on_playback_complete
+            on_playback_complete=self._on_playback_complete,
+            on_live_input=self._on_live_input
         )
         
         # Spam clicker callbacks
@@ -83,6 +84,26 @@ class MainWindow:
     def _update_status_threadsafe(self, message, color="black"):
         """Thread-safe status update."""
         self.root.after(0, self.update_status, message, color)
+    
+    def _on_live_input(self, input_type, input_text):
+        """Callback when a live input event occurs (key press or mouse click).
+        
+        Updates the banner and status widget with the latest input.
+        """
+        # Thread-safe update
+        self.root.after(0, self._update_live_input_display, input_type, input_text)
+    
+    def _update_live_input_display(self, input_type, input_text):
+        """Update the live input display in banner and status."""
+        # Update banner
+        self.banner_manager.update_live_input(input_type, input_text)
+        
+        # Update status label with input info
+        if self.event_recorder.is_recording:
+            event_count = len(self.event_recorder.recorded_events)
+            self.status_label.config(text=f"Recording: {event_count} events | Last: {input_text}", fg="red")
+        elif self.event_recorder.is_playing:
+            self.status_label.config(text=f"Playing | Last: {input_text}", fg="blue")
     
     def _on_playback_complete(self):
         """Callback when playback completes."""

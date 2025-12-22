@@ -11,7 +11,9 @@ class BannerManager:
         self.banner_windows = []  # List of banner windows (one per monitor)
         self.border_frames = []
         self.status_labels = []  # Status labels for updating messages
+        self.input_labels = []   # Labels for showing live input
         self.current_bg_color = None
+        self.default_status = ""
         self.auto_hide_id = None  # For auto-hiding status messages
     
     def _get_all_monitors(self):
@@ -54,6 +56,8 @@ class BannerManager:
         
         self.current_bg_color = bg_color
         self.status_labels = []
+        self.input_labels = []  # For showing live input
+        self.default_status = status_text or ""
         
         # Get all monitors
         monitors = self._get_all_monitors()
@@ -75,6 +79,14 @@ class BannerManager:
                                    font=("Arial", 12, "bold"),
                                    bg=bg_color, fg="white")
             banner_label.pack(anchor="w")
+            
+            # Live input line (shows latest key/mouse)
+            input_label = tk.Label(banner_frame, text="",
+                                  font=("Arial", 10),
+                                  bg=bg_color, fg="#FFEB3B",  # Yellow for visibility
+                                  width=25, anchor="w")
+            input_label.pack(anchor="w")
+            self.input_labels.append(input_label)
             
             # Status line (smaller, below main text)
             status_label = tk.Label(banner_frame, text=status_text or "",
@@ -123,6 +135,30 @@ class BannerManager:
             right_frame.configure(bg=bg_color)
             right_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x + mon_width - border_thickness}+{mon_y}")
             self.border_frames.append(right_frame)
+    
+    def update_live_input(self, input_type, input_text):
+        """Update the live input display on all banners.
+        
+        Args:
+            input_type: Type of input ("key" or "mouse")
+            input_text: The text to display (e.g., "⌨ A" or "🖱 LEFT (100, 200)")
+        """
+        if not self.banner_windows:
+            return
+        
+        # Update all input labels
+        for label in self.input_labels:
+            try:
+                label.config(text=input_text)
+            except:
+                pass
+        
+        # Update window geometry to fit new text
+        for window in self.banner_windows:
+            try:
+                window.update_idletasks()
+            except:
+                pass
     
     def update_status(self, message, default_status=None, duration=2000):
         """Update the status text on all banners.
@@ -228,7 +264,9 @@ class BannerManager:
                 pass
         self.banner_windows = []
         self.status_labels = []
+        self.input_labels = []
         self.current_bg_color = None
+        self.default_status = ""
         
         for frame in self.border_frames:
             try:

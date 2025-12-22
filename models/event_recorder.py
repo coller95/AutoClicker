@@ -42,8 +42,9 @@ class EventRecorder:
         self.on_event_callback = None
         self.on_status_callback = None
         self.on_playback_complete_callback = None
+        self.on_live_input_callback = None  # For showing live key/mouse input
     
-    def set_callbacks(self, on_event=None, on_status=None, on_playback_complete=None):
+    def set_callbacks(self, on_event=None, on_status=None, on_playback_complete=None, on_live_input=None):
         """Set callback functions for events."""
         if on_event:
             self.on_event_callback = on_event
@@ -51,6 +52,8 @@ class EventRecorder:
             self.on_status_callback = on_status
         if on_playback_complete:
             self.on_playback_complete_callback = on_playback_complete
+        if on_live_input:
+            self.on_live_input_callback = on_live_input
     
     def set_ignored_keys(self, keys):
         """Set keys to ignore during recording."""
@@ -116,10 +119,16 @@ class EventRecorder:
         }
         self.recorded_events.append(event)
         
+        action = "Press" if pressed else "Release"
+        button_name = str(button).replace("Button.", "").upper()
+        
         if self.on_event_callback:
-            action = "Press" if pressed else "Release"
             log_text = f"[{timestamp:.2f}s] Mouse {action}: {button} at ({x}, {y})\n"
             self.on_event_callback(log_text)
+        
+        # Live input callback for banner display
+        if self.on_live_input_callback and pressed:
+            self.on_live_input_callback("mouse", f"🖱 {button_name} ({x}, {y})")
     
     def _on_move(self, x, y):
         """Handle mouse move events (currently not recorded)."""
@@ -138,8 +147,11 @@ class EventRecorder:
         
         try:
             key_name = key.char
+            display_name = key.char
         except AttributeError:
             key_name = str(key)
+            # Clean up display name (remove "Key." prefix)
+            display_name = str(key).replace("Key.", "").upper()
         
         event = {
             'type': 'key_press',
@@ -151,6 +163,10 @@ class EventRecorder:
         if self.on_event_callback:
             log_text = f"[{timestamp:.2f}s] Key Press: {key_name}\n"
             self.on_event_callback(log_text)
+        
+        # Live input callback for banner display
+        if self.on_live_input_callback:
+            self.on_live_input_callback("key", f"⌨ {display_name}")
     
     def _on_key_release(self, key):
         """Handle keyboard key release events."""
@@ -284,12 +300,20 @@ class EventRecorder:
         # Parse button
         if 'left' in button_str.lower():
             button = Button.left
+            button_name = "LEFT"
         elif 'right' in button_str.lower():
             button = Button.right
+            button_name = "RIGHT"
         elif 'middle' in button_str.lower():
             button = Button.middle
+            button_name = "MIDDLE"
         else:
             button = Button.left
+            button_name = "LEFT"
+        
+        # Live input callback for banner display (only on press)
+        if self.on_live_input_callback and pressed:
+            self.on_live_input_callback("mouse", f"🖱 {button_name} ({x}, {y})")
         
         # Click and track state
         if pressed:
@@ -311,11 +335,17 @@ class EventRecorder:
                 if key:
                     self.keyboard_controller.press(key)
                     self._pressed_keys.add(key)
+                    # Live input callback
+                    if self.on_live_input_callback:
+                        self.on_live_input_callback("key", f"⌨ {key_attr.upper()}")
                     return
             
             # Regular character
             self.keyboard_controller.press(key_name)
             self._pressed_keys.add(key_name)
+            # Live input callback
+            if self.on_live_input_callback:
+                self.on_live_input_callback("key", f"⌨ {key_name}")
         except Exception as e:
             print(f"Error pressing key {key_name}: {e}")
     
