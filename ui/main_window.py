@@ -390,7 +390,9 @@ class MainWindow:
     
     def force_stop(self):
         """Force stop all activities."""
-        if self.event_recorder.is_playing:
+        if self.event_recorder.is_recording:
+            self.stop_recording()
+        elif self.event_recorder.is_playing:
             self.stop_playback()
         elif self.spam_clicker.is_active():
             self.stop_spam_click()
