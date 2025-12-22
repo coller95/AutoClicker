@@ -2,17 +2,96 @@
 
 This module provides consistent handling of numpad vs regular keys across
 the application. On Linux/X11, numpad keys can be differentiated from regular
-keys by their keysym values.
+keys by their keysym values. On Windows, virtual key codes (VK) are used.
 """
 
+import os
+import sys
 from pynput import keyboard
 
 # Debug logging
 DEBUG_KEYS = False
 
+
+def detect_environment():
+    """
+    Detect the current environment/platform.
+    
+    Returns:
+        str: 'windows', 'x11', 'wayland', or 'unknown'
+    """
+    if sys.platform == 'win32':
+        return 'windows'
+    elif sys.platform == 'darwin':
+        return 'macos'
+    elif sys.platform.startswith('linux'):
+        # Check for Wayland vs X11
+        session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
+        if session_type == 'wayland':
+            return 'wayland'
+        elif session_type == 'x11':
+            return 'x11'
+        # Fallback: check WAYLAND_DISPLAY and DISPLAY
+        if os.environ.get('WAYLAND_DISPLAY'):
+            return 'wayland'
+        if os.environ.get('DISPLAY'):
+            return 'x11'
+        return 'linux_unknown'
+    return 'unknown'
+
+
+# Current environment
+CURRENT_ENV = detect_environment()
+
+
+def get_environment():
+    """
+    Get the current environment/platform.
+    
+    Returns:
+        str: 'windows', 'x11', 'wayland', 'macos', or 'unknown'
+    """
+    return CURRENT_ENV
+
+
+def is_numpad_supported():
+    """
+    Check if numpad differentiation is supported on the current platform.
+    
+    Returns:
+        bool: True if numpad keys can be differentiated from regular keys
+    """
+    return CURRENT_ENV in ('windows', 'x11', 'linux_unknown')
+
+
 def debug_log(msg):
     if DEBUG_KEYS:
         print(f"[KEY_UTILS DEBUG] {msg}")
+
+
+# Windows numpad virtual key codes
+WINDOWS_NUMPAD_VK = {
+    96:  ('num_0', 'NUM 0'),       # VK_NUMPAD0
+    97:  ('num_1', 'NUM 1'),       # VK_NUMPAD1
+    98:  ('num_2', 'NUM 2'),       # VK_NUMPAD2
+    99:  ('num_3', 'NUM 3'),       # VK_NUMPAD3
+    100: ('num_4', 'NUM 4'),       # VK_NUMPAD4
+    101: ('num_5', 'NUM 5'),       # VK_NUMPAD5
+    102: ('num_6', 'NUM 6'),       # VK_NUMPAD6
+    103: ('num_7', 'NUM 7'),       # VK_NUMPAD7
+    104: ('num_8', 'NUM 8'),       # VK_NUMPAD8
+    105: ('num_9', 'NUM 9'),       # VK_NUMPAD9
+    110: ('num_decimal', 'NUM .'), # VK_DECIMAL
+    107: ('num_add', 'NUM +'),     # VK_ADD
+    109: ('num_subtract', 'NUM -'), # VK_SUBTRACT
+    106: ('num_multiply', 'NUM *'), # VK_MULTIPLY
+    111: ('num_divide', 'NUM /'),   # VK_DIVIDE
+    # Note: VK_RETURN (13) is shared between Enter and Numpad Enter
+    # On Windows, distinguishing them requires scan code checking
+}
+
+# Reverse mapping for Windows: key name -> VK code
+WINDOWS_NUMPAD_NAME_TO_VK = {name: vk for vk, (name, _) in WINDOWS_NUMPAD_VK.items()}
 
 
 # X11 numpad keysyms - these are the raw keysym values for numpad keys
@@ -60,30 +139,43 @@ class KeyInfo:
     def _analyze_key(self, key):
         """Analyze the key and determine its properties."""
         key_str = str(key)
-        debug_log(f"Analyzing key: {repr(key)}, str={key_str}")
+        debug_log(f"Analyzing key: {repr(key)}, str={key_str}, env={CURRENT_ENV}")
         
-        # Check for X11 keysym format: <number>
-        if key_str.startswith('<') and key_str.endswith('>'):
-            try:
-                keysym = int(key_str[1:-1])
-                debug_log(f"  X11 keysym detected: {keysym}")
-                
-                if keysym in X11_NUMPAD_KEYSYMS:
-                    self.is_numpad = True
-                    self.key_name, self.display_name = X11_NUMPAD_KEYSYMS[keysym]
-                    # Create a normalized key that preserves numpad identity
-                    self.normalized_key = ('numpad', keysym)
-                    debug_log(f"  -> Numpad key: {self.key_name}")
-                    return
-                else:
-                    # Unknown keysym
-                    self.key_name = key_str
-                    self.display_name = f'KEY {keysym}'
-                    self.normalized_key = ('keysym', keysym)
-                    debug_log(f"  -> Unknown keysym: {keysym}")
-                    return
-            except ValueError:
-                pass
+        # Windows: Check VK codes for numpad keys
+        if CURRENT_ENV == 'windows':
+            vk = getattr(key, 'vk', None)
+            debug_log(f"  Windows VK code: {vk}")
+            
+            if vk is not None and vk in WINDOWS_NUMPAD_VK:
+                self.is_numpad = True
+                self.key_name, self.display_name = WINDOWS_NUMPAD_VK[vk]
+                self.normalized_key = ('numpad_vk', vk)
+                debug_log(f"  -> Windows numpad key: {self.key_name}")
+                return
+        
+        # X11/Linux: Check for X11 keysym format: <number>
+        if CURRENT_ENV in ('x11', 'linux_unknown'):
+            if key_str.startswith('<') and key_str.endswith('>'):
+                try:
+                    keysym = int(key_str[1:-1])
+                    debug_log(f"  X11 keysym detected: {keysym}")
+                    
+                    if keysym in X11_NUMPAD_KEYSYMS:
+                        self.is_numpad = True
+                        self.key_name, self.display_name = X11_NUMPAD_KEYSYMS[keysym]
+                        # Create a normalized key that preserves numpad identity
+                        self.normalized_key = ('numpad', keysym)
+                        debug_log(f"  -> Numpad key: {self.key_name}")
+                        return
+                    else:
+                        # Unknown keysym
+                        self.key_name = key_str
+                        self.display_name = f'KEY {keysym}'
+                        self.normalized_key = ('keysym', keysym)
+                        debug_log(f"  -> Unknown keysym: {keysym}")
+                        return
+                except ValueError:
+                    pass
         
         # Check for Key.* constants (special keys like num_lock, F1, etc.)
         if hasattr(key, 'name'):
@@ -99,8 +191,9 @@ class KeyInfo:
             vk = getattr(key, 'vk', None)
             debug_log(f"  Char key: char={repr(char)}, vk={vk}")
             
-            # On Linux/X11: vk=None typically means numpad when NumLock is ON
-            if vk is None:
+            # Windows: VK codes already handled above, remaining chars are regular keys
+            # X11/Linux: vk=None typically means numpad when NumLock is ON
+            if CURRENT_ENV in ('x11', 'linux_unknown') and vk is None:
                 # Likely numpad key with NumLock ON
                 if char in '0123456789':
                     self.is_numpad = True
@@ -216,6 +309,7 @@ def parse_key_name(key_name):
     Parse a key name string back to a normalized key tuple.
     
     This is used when loading hotkeys from config files.
+    Returns environment-appropriate normalized keys for cross-platform compatibility.
     
     Args:
         key_name: String name of the key (e.g., 'F1', 'A', 'NUM +', 'num_add')
@@ -226,40 +320,68 @@ def parse_key_name(key_name):
     key_name_clean = key_name.strip("'\"")
     key_name_upper = key_name_clean.upper()
     
-    debug_log(f"parse_key_name: {key_name} -> clean={key_name_clean}, upper={key_name_upper}")
+    debug_log(f"parse_key_name: {key_name} -> clean={key_name_clean}, upper={key_name_upper}, env={CURRENT_ENV}")
     
     # Check for numpad keys
     if key_name_clean.startswith('num_') or key_name_upper.startswith('NUM '):
-        # It's a numpad key
-        if key_name_clean in NUMPAD_NAME_TO_KEYSYM:
-            keysym = NUMPAD_NAME_TO_KEYSYM[key_name_clean]
-            debug_log(f"  -> Numpad keysym: {keysym}")
-            return ('numpad', keysym)
+        # It's a numpad key - return environment-appropriate normalized key
+        name_lower = key_name_clean.lower()
         
-        # Parse NUM X format
+        # On Windows, use VK codes
+        if CURRENT_ENV == 'windows':
+            if name_lower in WINDOWS_NUMPAD_NAME_TO_VK:
+                vk = WINDOWS_NUMPAD_NAME_TO_VK[name_lower]
+                debug_log(f"  -> Windows numpad VK: {vk}")
+                return ('numpad_vk', vk)
+        
+        # On X11, use keysyms
+        if CURRENT_ENV in ('x11', 'linux_unknown'):
+            if name_lower in NUMPAD_NAME_TO_KEYSYM:
+                keysym = NUMPAD_NAME_TO_KEYSYM[name_lower]
+                debug_log(f"  -> X11 numpad keysym: {keysym}")
+                return ('numpad', keysym)
+        
+        # Parse NUM X format - use generic numpad_char for portability
         if key_name_upper.startswith('NUM '):
             suffix = key_name_clean[4:] if key_name_clean.startswith('num_') else key_name_clean[4:]
             debug_log(f"  -> Parsing NUM format, suffix='{suffix}'")
             
             if suffix in '0123456789':
+                # On Windows, map to VK if possible
+                if CURRENT_ENV == 'windows':
+                    vk_name = f'num_{suffix}'
+                    if vk_name in WINDOWS_NUMPAD_NAME_TO_VK:
+                        return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK[vk_name])
                 return ('numpad_char', suffix)
             elif suffix in ['+', 'add', 'ADD']:
+                if CURRENT_ENV == 'windows' and 'num_add' in WINDOWS_NUMPAD_NAME_TO_VK:
+                    return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK['num_add'])
                 return ('numpad_char', '+')
             elif suffix in ['-', 'subtract', 'SUBTRACT']:
+                if CURRENT_ENV == 'windows' and 'num_subtract' in WINDOWS_NUMPAD_NAME_TO_VK:
+                    return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK['num_subtract'])
                 return ('numpad_char', '-')
             elif suffix in ['*', 'multiply', 'MULTIPLY']:
+                if CURRENT_ENV == 'windows' and 'num_multiply' in WINDOWS_NUMPAD_NAME_TO_VK:
+                    return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK['num_multiply'])
                 return ('numpad_char', '*')
             elif suffix in ['/', 'divide', 'DIVIDE']:
+                if CURRENT_ENV == 'windows' and 'num_divide' in WINDOWS_NUMPAD_NAME_TO_VK:
+                    return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK['num_divide'])
                 return ('numpad_char', '/')
             elif suffix in ['.', ',', 'decimal', 'DECIMAL']:
+                if CURRENT_ENV == 'windows' and 'num_decimal' in WINDOWS_NUMPAD_NAME_TO_VK:
+                    return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK['num_decimal'])
                 return ('numpad_char', 'decimal')
             elif suffix.upper() == 'ENTER':
-                if 'num_enter' in NUMPAD_NAME_TO_KEYSYM:
+                if CURRENT_ENV in ('x11', 'linux_unknown') and 'num_enter' in NUMPAD_NAME_TO_KEYSYM:
                     return ('numpad', NUMPAD_NAME_TO_KEYSYM['num_enter'])
+                # Windows numpad enter is harder to distinguish
         
-        # Try direct lookup
-        name_lower = key_name_clean.lower()
-        if name_lower in NUMPAD_NAME_TO_KEYSYM:
+        # Try direct lookup based on environment
+        if CURRENT_ENV == 'windows' and name_lower in WINDOWS_NUMPAD_NAME_TO_VK:
+            return ('numpad_vk', WINDOWS_NUMPAD_NAME_TO_VK[name_lower])
+        if CURRENT_ENV in ('x11', 'linux_unknown') and name_lower in NUMPAD_NAME_TO_KEYSYM:
             return ('numpad', NUMPAD_NAME_TO_KEYSYM[name_lower])
         
         debug_log(f"  -> Unknown numpad key: {key_name}")
@@ -301,6 +423,12 @@ def get_display_name(normalized_key):
     if key_type == 'numpad':
         if key_value in X11_NUMPAD_KEYSYMS:
             return X11_NUMPAD_KEYSYMS[key_value][1]
+        return f'NUM KEY {key_value}'
+    
+    elif key_type == 'numpad_vk':
+        # Windows VK codes
+        if key_value in WINDOWS_NUMPAD_VK:
+            return WINDOWS_NUMPAD_VK[key_value][1]
         return f'NUM KEY {key_value}'
     
     elif key_type == 'numpad_char':
