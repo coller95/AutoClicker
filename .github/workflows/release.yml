@@ -105,7 +105,7 @@ jobs:
         tag_name: v${{ steps.version.outputs.version }}
         name: AutoClicker v${{ steps.version.outputs.version }}
         generate_release_notes: true
-        draft: true
+        draft: false
         prerelease: false
         files: dist/AutoClicker.exe
       env:
