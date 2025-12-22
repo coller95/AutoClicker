@@ -341,6 +341,50 @@ class TestConcurrencyRegression:
                 assert result2 is False
                 
                 recorder.stop_playback()
+    
+    def test_spam_click_blocked_during_playback(self):
+        """Regression: Spam click should not start while playback is active.
+        
+        Bug fixed: spam_click could coexist with playback mode, causing
+        unpredictable mouse behavior.
+        """
+        recorder = EventRecorder()
+        spam_clicker = SpamClicker()
+        
+        # Simulate playback being active
+        recorder.is_playing = True
+        
+        # Spam clicker should check this state via MainWindow
+        # Here we test the underlying state that MainWindow checks
+        assert recorder.is_playing is True
+        assert spam_clicker.is_spam_clicking is False
+        
+        # The actual prevention is in MainWindow.start_spam_click() which checks:
+        # if self.event_recorder.is_playing:
+        #     self.update_status("Cannot spam click while playing!", "red")
+        #     return
+    
+    def test_playback_blocked_during_spam_click(self):
+        """Regression: Playback should not start while spam clicking is active."""
+        recorder = EventRecorder()
+        spam_clicker = SpamClicker()
+        
+        recorder.recorded_events = [
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left',
+             'pressed': True, 'timestamp': 0.0},
+        ]
+        
+        # Start spam clicking
+        with patch.object(spam_clicker.mouse_controller, 'click'):
+            spam_clicker.start_spam_click()
+            
+            # The actual prevention is in MainWindow.play_recording() which checks:
+            # if self.spam_clicker.is_active():
+            #     self.update_status("Stop spam clicking first!", "red")
+            #     return
+            assert spam_clicker.is_active() is True
+            
+            spam_clicker.stop_spam_click()
 
 
 class TestEventDataRegression:

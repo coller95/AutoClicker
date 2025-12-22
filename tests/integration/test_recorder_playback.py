@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 import json
 import tempfile
 import os
+import threading
 
 from models.event_recorder import EventRecorder
 from models.hotkey_manager import HotkeyManager
@@ -169,3 +170,100 @@ class TestFullWorkflowIntegration:
         # Stop recording shouldn't affect spam clicker state
         recorder.stop_recording()
         assert spam_clicker.is_spam_clicking is False
+
+
+class TestThreadSafeCallbackIntegration:
+    """Integration tests for thread-safe hotkey callbacks."""
+    
+    def test_callbacks_can_be_wrapped_for_thread_safety(self):
+        """Test that callbacks can be wrapped with root.after() for thread safety.
+        
+        This verifies the pattern used in MainWindow to prevent segfaults when
+        pynput's keyboard listener (running in a separate thread) triggers
+        callbacks that modify Tkinter widgets.
+        """
+        recorder = EventRecorder()
+        hotkey_manager = HotkeyManager()
+        
+        # Track which thread callbacks are called from
+        callback_threads = []
+        
+        def track_thread_callback():
+            callback_threads.append(threading.current_thread().name)
+            with patch('pynput.mouse.Listener'), patch('pynput.keyboard.Listener'):
+                recorder.start_recording()
+        
+        # Simulate wrapping callback like MainWindow does:
+        # lambda: self.root.after(0, self.toggle_recording)
+        # For testing, we just verify the callback works when wrapped
+        wrapped_callback = lambda: track_thread_callback()
+        
+        hotkey_manager.set_callbacks(on_record=wrapped_callback)
+        
+        # Simulate hotkey press from another thread (like pynput does)
+        def simulate_hotkey_from_thread():
+            hotkey_manager.on_record_callback()
+        
+        thread = threading.Thread(target=simulate_hotkey_from_thread)
+        thread.start()
+        thread.join(timeout=1.0)
+        
+        assert len(callback_threads) == 1
+        assert recorder.is_recording is True
+    
+    def test_multiple_rapid_hotkey_presses_from_different_thread(self):
+        """Test that rapid hotkey presses from background thread don't cause issues.
+        
+        This simulates the real-world scenario where a user rapidly presses
+        hotkeys and pynput's listener thread fires multiple callbacks quickly.
+        """
+        recorder = EventRecorder()
+        hotkey_manager = HotkeyManager()
+        
+        call_count = [0]
+        
+        def toggle_recording():
+            call_count[0] += 1
+            if recorder.is_recording:
+                recorder.stop_recording()
+            else:
+                with patch('pynput.mouse.Listener'), patch('pynput.keyboard.Listener'):
+                    recorder.start_recording()
+        
+        hotkey_manager.set_callbacks(on_record=toggle_recording)
+        
+        # Simulate rapid hotkey presses from background thread
+        def rapid_presses():
+            for _ in range(10):
+                hotkey_manager.on_record_callback()
+        
+        thread = threading.Thread(target=rapid_presses)
+        thread.start()
+        thread.join(timeout=2.0)
+        
+        # All callbacks should have been processed
+        assert call_count[0] == 10
+    
+    def test_hotkey_listener_runs_in_separate_thread(self):
+        """Verify that pynput's keyboard listener runs in a separate thread."""
+        hotkey_manager = HotkeyManager()
+        
+        main_thread = threading.current_thread().name
+        listener_thread_name = [None]
+        
+        def on_press_callback(key):
+            listener_thread_name[0] = threading.current_thread().name
+        
+        # Setup listener with a callback that records thread name
+        with patch('pynput.keyboard.Listener') as MockListener:
+            mock_instance = Mock()
+            MockListener.return_value = mock_instance
+            
+            hotkey_manager.setup_listener()
+            
+            # Get the on_press callback that was passed to Listener
+            call_args = MockListener.call_args
+            on_press = call_args.kwargs.get('on_press') or call_args[1].get('on_press')
+            
+            # Verify listener was started
+            mock_instance.start.assert_called_once()

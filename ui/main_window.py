@@ -41,7 +41,11 @@ class MainWindow:
         # Setup UI
         self.setup_ui()
         
-        # Setup hotkeys
+        # Setup hotkeys - delay to avoid race condition with mainloop
+        self.root.after(100, self._delayed_hotkey_setup)
+    
+    def _delayed_hotkey_setup(self):
+        """Setup hotkey listener after mainloop has started."""
         self.hotkey_manager.setup_listener()
     
     def _setup_callbacks(self):
@@ -58,12 +62,12 @@ class MainWindow:
             on_status=self._update_status_threadsafe
         )
         
-        # Hotkey manager callbacks
+        # Hotkey manager callbacks - wrap in thread-safe calls
         self.hotkey_manager.set_callbacks(
-            on_record=self.toggle_recording,
-            on_play=self.toggle_playback,
-            on_stop=self.force_stop,
-            on_spam=self.toggle_spam_click,
+            on_record=lambda: self.root.after(0, self.toggle_recording),
+            on_play=lambda: self.root.after(0, self.toggle_playback),
+            on_stop=lambda: self.root.after(0, self.force_stop),
+            on_spam=lambda: self.root.after(0, self.toggle_spam_click),
             on_hotkey_captured=self._on_hotkey_captured,
             on_status=self._update_status_threadsafe
         )
@@ -480,6 +484,10 @@ class MainWindow:
         """Start spam clicking."""
         if self.event_recorder.is_recording:
             self.update_status("Cannot spam click while recording!", "red")
+            return
+        
+        if self.event_recorder.is_playing:
+            self.update_status("Cannot spam click while playing!", "red")
             return
         
         if self.spam_clicker.start_spam_click():
