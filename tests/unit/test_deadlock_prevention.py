@@ -127,6 +127,122 @@ class TestEventRecorderMouseDeadlockPrevention:
                     # Press and release should be balanced
                     assert len(press_calls) == len(release_calls)
     
+    def test_stop_playback_releases_pressed_mouse_buttons(self):
+        """Test that stopping playback releases any held mouse buttons."""
+        recorder = EventRecorder()
+        
+        # Only press events, no release - simulates stopping mid-action
+        recorder.recorded_events = [
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left', 
+             'pressed': True, 'timestamp': 0.0},
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left', 
+             'pressed': True, 'timestamp': 10.0},  # Long delay to allow stop
+        ]
+        
+        release_calls = []
+        
+        with patch.object(recorder.mouse_controller, 'press'):
+            with patch.object(recorder.mouse_controller, 'release',
+                             side_effect=lambda b: release_calls.append(b)):
+                recorder.start_playback()
+                
+                # Wait for first press
+                time.sleep(0.1)
+                
+                # Stop playback - should release pressed button
+                recorder.stop_playback()
+                
+                # Wait for cleanup
+                time.sleep(0.1)
+                
+                # The pressed button should have been released
+                from pynput.mouse import Button
+                assert Button.left in release_calls
+    
+    def test_stop_playback_releases_pressed_keys(self):
+        """Test that stopping playback releases any held keyboard keys."""
+        recorder = EventRecorder()
+        
+        # Only press events, no release
+        recorder.recorded_events = [
+            {'type': 'key_press', 'key': 'a', 'timestamp': 0.0},
+            {'type': 'key_press', 'key': 'a', 'timestamp': 10.0},  # Long delay
+        ]
+        
+        release_calls = []
+        
+        with patch.object(recorder.keyboard_controller, 'press'):
+            with patch.object(recorder.keyboard_controller, 'release',
+                             side_effect=lambda k: release_calls.append(k)):
+                recorder.start_playback()
+                
+                # Wait for first press
+                time.sleep(0.1)
+                
+                # Stop playback - should release pressed key
+                recorder.stop_playback()
+                
+                # Wait for cleanup
+                time.sleep(0.1)
+                
+                # The pressed key should have been released
+                assert 'a' in release_calls
+    
+    def test_playback_complete_releases_all_pressed(self):
+        """Test that normal playback completion releases any held buttons."""
+        recorder = EventRecorder()
+        
+        # Unbalanced events - press without release
+        recorder.recorded_events = [
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left', 
+             'pressed': True, 'timestamp': 0.0},
+            # No release event!
+        ]
+        
+        release_calls = []
+        
+        with patch.object(recorder.mouse_controller, 'press'):
+            with patch.object(recorder.mouse_controller, 'release',
+                             side_effect=lambda b: release_calls.append(b)):
+                recorder.start_playback()
+                
+                # Wait for playback to complete
+                time.sleep(0.3)
+                
+                # The pressed button should have been released in finally block
+                from pynput.mouse import Button
+                assert Button.left in release_calls
+    
+    def test_pressed_state_cleared_at_playback_start(self):
+        """Test that pressed state is cleared when starting new playback."""
+        recorder = EventRecorder()
+        
+        # Manually set some stale pressed state
+        from pynput.mouse import Button
+        recorder._pressed_mouse_buttons.add(Button.right)
+        recorder._pressed_keys.add('x')
+        
+        recorder.recorded_events = [
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left', 
+             'pressed': True, 'timestamp': 0.0},
+            {'type': 'mouse_click', 'x': 100, 'y': 100, 'button': 'Button.left', 
+             'pressed': False, 'timestamp': 0.01},
+        ]
+        
+        with patch.object(recorder.mouse_controller, 'press'):
+            with patch.object(recorder.mouse_controller, 'release'):
+                recorder.start_playback()
+                
+                # Wait a moment for worker to start and clear state
+                time.sleep(0.05)
+                
+                # Stale state should be cleared (right button wasn't pressed in this session)
+                # Only left button should be tracked if pressed
+                assert Button.right not in recorder._pressed_mouse_buttons
+                assert 'x' not in recorder._pressed_keys
+                
+                recorder.stop_playback()
+    
     def test_playback_stops_cleanly_mid_sequence(self):
         """Test that stopping playback mid-sequence is handled."""
         recorder = EventRecorder()

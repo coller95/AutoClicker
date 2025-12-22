@@ -21,6 +21,10 @@ class EventRecorder:
         self.recorded_events = []
         self.start_time = None
         
+        # Track pressed buttons/keys during playback for cleanup
+        self._pressed_mouse_buttons = set()
+        self._pressed_keys = set()
+        
         # Listeners
         self.mouse_listener = None
         self.keyboard_listener = None
@@ -209,6 +213,10 @@ class EventRecorder:
     
     def _playback_worker(self):
         """Worker thread for playing back events."""
+        # Clear any stale pressed state at start
+        self._pressed_mouse_buttons.clear()
+        self._pressed_keys.clear()
+        
         try:
             loop = 0
             while True:
@@ -256,6 +264,8 @@ class EventRecorder:
                 self.on_status_callback(f"Error: {str(e)}", "red")
         
         finally:
+            # Always release any held buttons/keys when playback ends
+            self._release_all_pressed()
             self.is_playing = False
             if self.on_playback_complete_callback:
                 self.on_playback_complete_callback()
@@ -281,11 +291,13 @@ class EventRecorder:
         else:
             button = Button.left
         
-        # Click
+        # Click and track state
         if pressed:
             self.mouse_controller.press(button)
+            self._pressed_mouse_buttons.add(button)
         else:
             self.mouse_controller.release(button)
+            self._pressed_mouse_buttons.discard(button)
     
     def _replay_key_press(self, event):
         """Replay a keyboard key press event."""
@@ -298,10 +310,12 @@ class EventRecorder:
                 key = getattr(Key, key_attr, None)
                 if key:
                     self.keyboard_controller.press(key)
+                    self._pressed_keys.add(key)
                     return
             
             # Regular character
             self.keyboard_controller.press(key_name)
+            self._pressed_keys.add(key_name)
         except Exception as e:
             print(f"Error pressing key {key_name}: {e}")
     
@@ -316,21 +330,45 @@ class EventRecorder:
                 key = getattr(Key, key_attr, None)
                 if key:
                     self.keyboard_controller.release(key)
+                    self._pressed_keys.discard(key)
                     return
             
             # Regular character
             self.keyboard_controller.release(key_name)
+            self._pressed_keys.discard(key_name)
         except Exception as e:
             print(f"Error releasing key {key_name}: {e}")
     
     def stop_playback(self):
-        """Stop playing back events."""
+        """Stop playing back events and release any held buttons/keys."""
         if self.is_playing:
             self.is_playing = False
+            
+            # Release any mouse buttons that are still pressed
+            self._release_all_pressed()
+            
             if self.on_status_callback:
                 self.on_status_callback("Playback stopped!", "orange")
             return True
         return False
+    
+    def _release_all_pressed(self):
+        """Release all pressed mouse buttons and keyboard keys."""
+        # Release mouse buttons
+        for button in list(self._pressed_mouse_buttons):
+            try:
+                self.mouse_controller.release(button)
+            except Exception:
+                pass
+        self._pressed_mouse_buttons.clear()
+        
+        # Release keyboard keys
+        for key in list(self._pressed_keys):
+            try:
+                self.keyboard_controller.release(key)
+            except Exception:
+                pass
+        self._pressed_keys.clear()
     
     def clear_recording(self):
         """Clear all recorded events."""
