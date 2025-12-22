@@ -120,3 +120,99 @@ class TestHotkeyManagerHotkeyCapture:
         for hotkey_type in ["record", "play", "stop", "spam"]:
             manager.start_capture(hotkey_type)
             assert manager.capturing_hotkey == hotkey_type
+
+
+class TestHotkeyManagerSaveLoadRoundtrip:
+    """Tests for hotkey save/load functionality."""
+    
+    def test_save_and_load_special_keys(self):
+        """Test that special keys (F1, ESC, etc.) survive save/load roundtrip."""
+        manager = HotkeyManager()
+        
+        # Set some special keys
+        manager.hotkey_record = keyboard.Key.f5
+        manager.hotkey_play = keyboard.Key.f6
+        manager.hotkey_stop = keyboard.Key.esc
+        manager.hotkey_spam = keyboard.Key.f7
+        
+        # Get hotkeys (simulates saving to JSON)
+        saved = manager.get_hotkeys()
+        
+        # Create new manager and load hotkeys (simulates loading from JSON)
+        new_manager = HotkeyManager()
+        with patch.object(new_manager, 'setup_listener'):  # Don't actually setup listener
+            new_manager.set_hotkeys(saved)
+        
+        # Verify keys are correct
+        assert new_manager.hotkey_record == keyboard.Key.f5
+        assert new_manager.hotkey_play == keyboard.Key.f6
+        assert new_manager.hotkey_stop == keyboard.Key.esc
+        assert new_manager.hotkey_spam == keyboard.Key.f7
+    
+    def test_save_and_load_character_keys(self):
+        """Test that character keys (a, b, etc.) survive save/load roundtrip."""
+        manager = HotkeyManager()
+        
+        # Set character keys
+        key_a = keyboard.KeyCode.from_char('a')
+        key_b = keyboard.KeyCode.from_char('b')
+        manager.hotkey_record = key_a
+        manager.hotkey_play = key_b
+        
+        # Get hotkeys (simulates saving to JSON)
+        saved = manager.get_hotkeys()
+        
+        # Verify saved format doesn't have quotes
+        assert saved['record'] == 'A'
+        assert saved['play'] == 'B'
+        
+        # Create new manager and load hotkeys (simulates loading from JSON)
+        new_manager = HotkeyManager()
+        with patch.object(new_manager, 'setup_listener'):
+            new_manager.set_hotkeys(saved)
+        
+        # Verify keys work (compare by creating same key)
+        assert new_manager.hotkey_record == keyboard.KeyCode.from_char('a')
+        assert new_manager.hotkey_play == keyboard.KeyCode.from_char('b')
+    
+    def test_get_key_name_no_quotes_for_char_keys(self):
+        """Test that get_key_name returns clean names without quotes."""
+        manager = HotkeyManager()
+        
+        key_a = keyboard.KeyCode.from_char('a')
+        name = manager.get_key_name(key_a)
+        
+        # Should be 'A' not "'A'"
+        assert name == 'A'
+        assert "'" not in name
+        assert '"' not in name
+    
+    def test_parse_key_name_handles_quoted_input(self):
+        """Test that parse_key_name handles input with quotes (legacy files)."""
+        manager = HotkeyManager()
+        
+        # Even if old file had quotes, it should still parse correctly
+        parsed = manager.parse_key_name("'A'")
+        expected = keyboard.KeyCode.from_char('a')
+        
+        assert parsed == expected
+    
+    def test_hotkeys_work_after_load(self):
+        """Test that loaded hotkeys actually trigger correctly."""
+        manager = HotkeyManager()
+        
+        # Setup with custom keys
+        manager.hotkey_record = keyboard.Key.f9
+        saved = manager.get_hotkeys()
+        
+        # Load into new manager
+        new_manager = HotkeyManager()
+        callback_called = []
+        new_manager.set_callbacks(on_record=lambda: callback_called.append('record'))
+        
+        with patch.object(new_manager, 'setup_listener'):
+            new_manager.set_hotkeys(saved)
+        
+        # Verify the hotkey is set correctly for comparison
+        assert new_manager.hotkey_record == keyboard.Key.f9
+

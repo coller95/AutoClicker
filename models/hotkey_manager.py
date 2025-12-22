@@ -47,22 +47,27 @@ class HotkeyManager:
         """Get a readable name for a key."""
         if hasattr(key, 'name'):
             return key.name.upper()
-        return str(key).replace('Key.', '').upper()
+        # For KeyCode (character keys), strip quotes from string representation
+        return str(key).replace('Key.', '').strip("'\"").upper()
     
     def parse_key_name(self, key_name):
         """Parse a key name string back to a keyboard Key object."""
-        key_name_upper = key_name.upper()
+        # Strip any quotes that might be present
+        key_name_clean = key_name.strip("'\"")
+        key_name_upper = key_name_clean.upper()
         
-        # Try to match keyboard.Key attributes
+        # Try to match keyboard.Key attributes (special keys like F1, ESC, etc.)
         for attr_name in dir(keyboard.Key):
             if not attr_name.startswith('_'):
                 attr = getattr(keyboard.Key, attr_name)
                 if hasattr(attr, 'name') and attr.name.upper() == key_name_upper:
                     return attr
         
-        # If not found in keyboard.Key, try as KeyCode
+        # If not found in keyboard.Key, try as KeyCode (character key)
         try:
-            return keyboard.KeyCode.from_char(key_name.lower())
+            # Use the cleaned key name (single character)
+            char = key_name_clean.lower() if len(key_name_clean) == 1 else key_name_clean[0].lower()
+            return keyboard.KeyCode.from_char(char)
         except:
             # Default to F1 if parsing fails
             return keyboard.Key.f1
