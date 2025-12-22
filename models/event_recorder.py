@@ -6,6 +6,8 @@ from pynput.keyboard import Key, Controller as KeyboardController
 import threading
 import time
 
+from utils.key_utils import get_key_info, KeyInfo
+
 
 class EventRecorder:
     """Manages recording and playback of mouse and keyboard events."""
@@ -56,8 +58,24 @@ class EventRecorder:
             self.on_live_input_callback = on_live_input
     
     def set_ignored_keys(self, keys):
-        """Set keys to ignore during recording."""
+        """Set keys to ignore during recording.
+        
+        Args:
+            keys: List of KeyInfo objects or similar objects with normalized_key attribute
+        """
         self.ignored_keys = keys
+    
+    def _is_ignored_key(self, key):
+        """Check if a key should be ignored during recording."""
+        key_info = get_key_info(key)
+        for ignored in self.ignored_keys:
+            if hasattr(ignored, 'normalized_key'):
+                if key_info.normalized_key == ignored.normalized_key:
+                    return True
+            elif ignored == key:
+                # Fallback for direct comparison
+                return True
+        return False
     
     def start_recording(self):
         """Start recording mouse and keyboard events."""
@@ -278,7 +296,7 @@ class EventRecorder:
             return
         
         # Ignore configured hotkeys
-        if key in self.ignored_keys:
+        if self._is_ignored_key(key):
             return
         
         timestamp = time.time() - self.start_time
@@ -306,7 +324,7 @@ class EventRecorder:
             return
         
         # Ignore configured hotkeys
-        if key in self.ignored_keys:
+        if self._is_ignored_key(key):
             return
         
         timestamp = time.time() - self.start_time

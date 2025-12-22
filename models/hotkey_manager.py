@@ -1,9 +1,10 @@
 """Hotkey management functionality."""
 
 from pynput import keyboard
+from utils.key_utils import KeyInfo, get_key_info, keys_match, parse_key_name as parse_key, get_display_name
 
 # Debug logging
-DEBUG_HOTKEYS = True
+DEBUG_HOTKEYS = False
 
 def debug_log(msg):
     if DEBUG_HOTKEYS:
@@ -14,11 +15,11 @@ class HotkeyManager:
     """Manages hotkey configuration and listening."""
     
     def __init__(self):
-        # Default hotkeys
-        self.hotkey_record = keyboard.Key.f1
-        self.hotkey_play = keyboard.Key.f2
-        self.hotkey_stop = keyboard.Key.esc
-        self.hotkey_spam = keyboard.Key.f3
+        # Default hotkeys - store as KeyInfo normalized tuples
+        self.hotkey_record = get_key_info(keyboard.Key.f1)
+        self.hotkey_play = get_key_info(keyboard.Key.f2)
+        self.hotkey_stop = get_key_info(keyboard.Key.esc)
+        self.hotkey_spam = get_key_info(keyboard.Key.f3)
         
         # Hotkey listener
         self.hotkey_listener = None
@@ -50,45 +51,24 @@ class HotkeyManager:
         if on_status:
             self.on_status_callback = on_status
     
-    def _normalize_key(self, key):
-        """Normalize a key to lowercase for consistent comparison.
-        
-        Character keys are case-sensitive in pynput, but users expect
-        hotkeys to work regardless of shift/caps lock state.
-        """
-        if hasattr(key, 'char') and key.char is not None:
-            # For character keys, normalize to lowercase
-            return keyboard.KeyCode.from_char(key.char.lower())
-        return key
-    
     def get_key_name(self, key):
-        """Get a readable name for a key."""
-        if hasattr(key, 'name'):
-            return key.name.upper()
-        # For KeyCode (character keys), strip quotes from string representation
-        return str(key).replace('Key.', '').strip("'\"").upper()
+        """Get a readable name for a key.
+        
+        Args:
+            key: Can be a pynput key, KeyInfo object, or normalized tuple
+        """
+        if isinstance(key, KeyInfo):
+            return key.display_name
+        elif isinstance(key, tuple):
+            return get_display_name(key)
+        else:
+            # Raw pynput key
+            info = get_key_info(key)
+            return info.display_name
     
     def parse_key_name(self, key_name):
-        """Parse a key name string back to a keyboard Key object."""
-        # Strip any quotes that might be present
-        key_name_clean = key_name.strip("'\"")
-        key_name_upper = key_name_clean.upper()
-        
-        # Try to match keyboard.Key attributes (special keys like F1, ESC, etc.)
-        for attr_name in dir(keyboard.Key):
-            if not attr_name.startswith('_'):
-                attr = getattr(keyboard.Key, attr_name)
-                if hasattr(attr, 'name') and attr.name.upper() == key_name_upper:
-                    return attr
-        
-        # If not found in keyboard.Key, try as KeyCode (character key)
-        try:
-            # Use the cleaned key name (single character)
-            char = key_name_clean.lower() if len(key_name_clean) == 1 else key_name_clean[0].lower()
-            return keyboard.KeyCode.from_char(char)
-        except:
-            # Default to F1 if parsing fails
-            return keyboard.Key.f1
+        """Parse a key name string back to a normalized key tuple."""
+        return parse_key(key_name)
     
     def start_capture(self, hotkey_type):
         """Start capturing a new hotkey."""
@@ -99,30 +79,29 @@ class HotkeyManager:
     
     def set_hotkey(self, key, hotkey_type):
         """Set a new hotkey."""
+        # Get KeyInfo for the pressed key
+        key_info = get_key_info(key)
         debug_log(f"set_hotkey called: key={repr(key)}, type={hotkey_type}")
-        
-        # Normalize character keys to lowercase for consistent comparison
-        normalized_key = self._normalize_key(key)
-        debug_log(f"  normalized_key={repr(normalized_key)}")
+        debug_log(f"  KeyInfo: {key_info}")
         
         if hotkey_type == 'record':
-            self.hotkey_record = normalized_key
+            self.hotkey_record = key_info
         elif hotkey_type == 'play':
-            self.hotkey_play = normalized_key
+            self.hotkey_play = key_info
         elif hotkey_type == 'stop':
-            self.hotkey_stop = normalized_key
+            self.hotkey_stop = key_info
         elif hotkey_type == 'spam':
-            self.hotkey_spam = normalized_key
+            self.hotkey_spam = key_info
         
         self.capturing_hotkey = None
         
-        debug_log(f"  Hotkeys now: record={repr(self.hotkey_record)}, play={repr(self.hotkey_play)}, stop={repr(self.hotkey_stop)}, spam={repr(self.hotkey_spam)}")
+        debug_log(f"  Hotkeys now: record={self.hotkey_record}, play={self.hotkey_play}, stop={self.hotkey_stop}, spam={self.hotkey_spam}")
         
         if self.on_status_callback:
-            self.on_status_callback(f"Hotkey updated to {self.get_key_name(key)}", "green")
+            self.on_status_callback(f"Hotkey updated to {key_info.display_name}", "green")
         
         if self.on_hotkey_captured_callback:
-            self.on_hotkey_captured_callback(hotkey_type, key)
+            self.on_hotkey_captured_callback(hotkey_type, key_info)
         
         # Restart hotkey listener with new keys
         self.setup_listener()
@@ -146,25 +125,25 @@ class HotkeyManager:
                     self.set_hotkey(key, self.capturing_hotkey)
                     return
                 
-                # Normalize the pressed key for case-insensitive comparison
-                normalized_key = self._normalize_key(key)
-                debug_log(f"  normalized_key={repr(normalized_key)}")
-                debug_log(f"  Comparing to: record={repr(self.hotkey_record)}, play={repr(self.hotkey_play)}, stop={repr(self.hotkey_stop)}, spam={repr(self.hotkey_spam)}")
+                # Get KeyInfo for the pressed key
+                pressed_key_info = get_key_info(key)
+                debug_log(f"  pressed_key_info={pressed_key_info}")
+                debug_log(f"  Comparing to: record={self.hotkey_record}, play={self.hotkey_play}, stop={self.hotkey_stop}, spam={self.hotkey_spam}")
                 
-                # Normal hotkey handling
-                if normalized_key == self.hotkey_record:
+                # Normal hotkey handling - compare KeyInfo objects
+                if pressed_key_info == self.hotkey_record:
                     debug_log("  -> MATCHED record hotkey!")
                     if self.on_record_callback:
                         self.on_record_callback()
-                elif normalized_key == self.hotkey_play:
+                elif pressed_key_info == self.hotkey_play:
                     debug_log("  -> MATCHED play hotkey!")
                     if self.on_play_callback:
                         self.on_play_callback()
-                elif normalized_key == self.hotkey_stop:
+                elif pressed_key_info == self.hotkey_stop:
                     debug_log("  -> MATCHED stop hotkey!")
                     if self.on_stop_callback:
                         self.on_stop_callback()
-                elif normalized_key == self.hotkey_spam:
+                elif pressed_key_info == self.hotkey_spam:
                     debug_log("  -> MATCHED spam hotkey!")
                     if self.on_spam_callback:
                         self.on_spam_callback()
@@ -172,6 +151,8 @@ class HotkeyManager:
                     debug_log("  -> No match")
             except Exception as e:
                 debug_log(f"  ERROR in on_press: {e}")
+                import traceback
+                traceback.print_exc()
         
         self.hotkey_listener = keyboard.Listener(on_press=on_press)
         self.hotkey_listener.start()
@@ -183,28 +164,60 @@ class HotkeyManager:
             self.hotkey_listener.stop()
     
     def get_hotkeys(self):
-        """Get all configured hotkeys."""
+        """Get all configured hotkeys as display names for saving."""
         return {
-            'record': self.get_key_name(self.hotkey_record),
-            'play': self.get_key_name(self.hotkey_play),
-            'stop': self.get_key_name(self.hotkey_stop),
-            'spam': self.get_key_name(self.hotkey_spam)
+            'record': self.hotkey_record.display_name if isinstance(self.hotkey_record, KeyInfo) else self.get_key_name(self.hotkey_record),
+            'play': self.hotkey_play.display_name if isinstance(self.hotkey_play, KeyInfo) else self.get_key_name(self.hotkey_play),
+            'stop': self.hotkey_stop.display_name if isinstance(self.hotkey_stop, KeyInfo) else self.get_key_name(self.hotkey_stop),
+            'spam': self.hotkey_spam.display_name if isinstance(self.hotkey_spam, KeyInfo) else self.get_key_name(self.hotkey_spam)
         }
     
     def set_hotkeys(self, hotkeys_dict):
-        """Set hotkeys from a dictionary."""
+        """Set hotkeys from a dictionary (loading from config)."""
+        debug_log(f"set_hotkeys called with: {hotkeys_dict}")
+        
         if 'record' in hotkeys_dict:
-            self.hotkey_record = self.parse_key_name(hotkeys_dict['record'])
+            normalized = self.parse_key_name(hotkeys_dict['record'])
+            # Create a KeyInfo-like object for comparison
+            self.hotkey_record = self._create_key_info_from_normalized(normalized, hotkeys_dict['record'])
         if 'play' in hotkeys_dict:
-            self.hotkey_play = self.parse_key_name(hotkeys_dict['play'])
+            normalized = self.parse_key_name(hotkeys_dict['play'])
+            self.hotkey_play = self._create_key_info_from_normalized(normalized, hotkeys_dict['play'])
         if 'stop' in hotkeys_dict:
-            self.hotkey_stop = self.parse_key_name(hotkeys_dict['stop'])
+            normalized = self.parse_key_name(hotkeys_dict['stop'])
+            self.hotkey_stop = self._create_key_info_from_normalized(normalized, hotkeys_dict['stop'])
         if 'spam' in hotkeys_dict:
-            self.hotkey_spam = self.parse_key_name(hotkeys_dict['spam'])
+            normalized = self.parse_key_name(hotkeys_dict['spam'])
+            self.hotkey_spam = self._create_key_info_from_normalized(normalized, hotkeys_dict['spam'])
+        
+        debug_log(f"  Hotkeys loaded: record={self.hotkey_record}, play={self.hotkey_play}, stop={self.hotkey_stop}, spam={self.hotkey_spam}")
         
         # Restart listener with new hotkeys
         self.setup_listener()
     
+    def _create_key_info_from_normalized(self, normalized_tuple, display_name):
+        """Create a KeyInfo-compatible object from a normalized tuple."""
+        # Create a simple object that has the same interface as KeyInfo for comparison
+        class LoadedKeyInfo:
+            def __init__(self, normalized, display):
+                self.normalized_key = normalized
+                self.display_name = display
+                self.key_name = display
+                self.is_numpad = normalized[0] in ('numpad', 'numpad_char')
+            
+            def __eq__(self, other):
+                if hasattr(other, 'normalized_key'):
+                    return self.normalized_key == other.normalized_key
+                return False
+            
+            def __repr__(self):
+                return f"LoadedKeyInfo(normalized={self.normalized_key}, display={self.display_name})"
+        
+        return LoadedKeyInfo(normalized_tuple, display_name)
+    
     def get_ignored_keys(self):
-        """Get list of hotkeys that should be ignored during recording."""
+        """Get list of hotkeys that should be ignored during recording.
+        
+        Returns KeyInfo objects that can be compared with incoming key events.
+        """
         return [self.hotkey_record, self.hotkey_play, self.hotkey_stop, self.hotkey_spam]
