@@ -134,6 +134,142 @@ class EventRecorder:
         """Handle mouse move events (currently not recorded)."""
         pass
     
+    def _get_key_names(self, key):
+        """Get key name and display name, differentiating numpad keys.
+        
+        Returns:
+            tuple: (key_name for recording, display_name for UI)
+        """
+        key_str = str(key)
+        
+        # X11 numpad keycodes (when NumLock is OFF or for special numpad keys)
+        # These are X11 keysyms for numpad keys
+        x11_numpad_map = {
+            65437: ('num_5', 'NUM 5'),      # KP_5 / KP_Begin
+            65436: ('num_4', 'NUM 4'),      # KP_4 / KP_Left
+            65438: ('num_6', 'NUM 6'),      # KP_6 / KP_Right
+            65432: ('num_8', 'NUM 8'),      # KP_8 / KP_Up
+            65433: ('num_2', 'NUM 2'),      # KP_2 / KP_Down
+            65434: ('num_9', 'NUM 9'),      # KP_9 / KP_Prior
+            65435: ('num_3', 'NUM 3'),      # KP_3 / KP_Next
+            65429: ('num_7', 'NUM 7'),      # KP_7 / KP_Home
+            65430: ('num_1', 'NUM 1'),      # KP_1 / KP_End
+            65438: ('num_0', 'NUM 0'),      # KP_0 / KP_Insert
+            65439: ('num_decimal', 'NUM .'), # KP_Decimal / KP_Delete
+            65451: ('num_add', 'NUM +'),     # KP_Add
+            65453: ('num_subtract', 'NUM -'), # KP_Subtract
+            65450: ('num_multiply', 'NUM *'), # KP_Multiply
+            65455: ('num_divide', 'NUM /'),   # KP_Divide
+            65421: ('num_enter', 'NUM ENTER'), # KP_Enter
+        }
+        
+        # Check if it's an X11 numpad keycode (appears as <number>)
+        if key_str.startswith('<') and key_str.endswith('>'):
+            try:
+                keycode = int(key_str[1:-1])
+                if keycode in x11_numpad_map:
+                    return x11_numpad_map[keycode]
+                # Unknown numpad/special key
+                return (key_str, f'KEY {keycode}')
+            except ValueError:
+                pass
+        
+        # Check for Key.* numpad constants
+        if 'num_lock' in key_str.lower():
+            return ('Key.num_lock', 'NUM LOCK')
+        
+        # Try to get character
+        try:
+            char = key.char
+            if char is not None:
+                vk = getattr(key, 'vk', None)
+                
+                # On Linux/X11: vk=None typically means numpad, vk=number means regular
+                # Check if it's a digit or numpad symbol
+                if char in '0123456789':
+                    if vk is None:
+                        return (f'num_{char}', f'NUM {char}')
+                    else:
+                        return (char, char)
+                elif char == '.':
+                    if vk is None:
+                        return ('num_decimal', 'NUM .')
+                    else:
+                        return (char, char)
+                elif char == '+':
+                    if vk is None:
+                        return ('num_add', 'NUM +')
+                    else:
+                        return (char, '+')
+                elif char == '-':
+                    if vk is None:
+                        return ('num_subtract', 'NUM -')
+                    else:
+                        return (char, '-')
+                elif char == '*':
+                    if vk is None:
+                        return ('num_multiply', 'NUM *')
+                    else:
+                        return (char, '*')
+                elif char == '/':
+                    if vk is None:
+                        return ('num_divide', 'NUM /')
+                    else:
+                        return (char, '/')
+                else:
+                    return (char, char)
+        except AttributeError:
+            pass
+        
+        # Handle special keys
+        key_name = str(key)
+        display_name = key_name.replace("Key.", "").upper()
+        
+        # Make display names more readable
+        display_replacements = {
+            'SPACE': 'SPACE',
+            'ENTER': 'ENTER',
+            'BACKSPACE': 'BACKSPACE',
+            'TAB': 'TAB',
+            'CAPS_LOCK': 'CAPS',
+            'SHIFT': 'SHIFT',
+            'SHIFT_L': 'L-SHIFT',
+            'SHIFT_R': 'R-SHIFT',
+            'CTRL': 'CTRL',
+            'CTRL_L': 'L-CTRL',
+            'CTRL_R': 'R-CTRL',
+            'ALT': 'ALT',
+            'ALT_L': 'L-ALT',
+            'ALT_R': 'R-ALT',
+            'ALT_GR': 'ALT GR',
+            'CMD': 'CMD',
+            'CMD_L': 'L-CMD',
+            'CMD_R': 'R-CMD',
+            'DELETE': 'DEL',
+            'INSERT': 'INS',
+            'HOME': 'HOME',
+            'END': 'END',
+            'PAGE_UP': 'PG UP',
+            'PAGE_DOWN': 'PG DN',
+            'UP': '↑',
+            'DOWN': '↓',
+            'LEFT': '←',
+            'RIGHT': '→',
+            'ESC': 'ESC',
+            'ESCAPE': 'ESC',
+            'PRINT_SCREEN': 'PRTSC',
+            'SCROLL_LOCK': 'SCRLK',
+            'PAUSE': 'PAUSE',
+        }
+        
+        if display_name in display_replacements:
+            display_name = display_replacements[display_name]
+        
+        if display_name in display_replacements:
+            display_name = display_replacements[display_name]
+        
+        return (key_name, display_name)
+    
     def _on_key_press(self, key):
         """Handle keyboard key press events."""
         if not self.is_recording:
@@ -145,13 +281,7 @@ class EventRecorder:
         
         timestamp = time.time() - self.start_time
         
-        try:
-            key_name = key.char
-            display_name = key.char
-        except AttributeError:
-            key_name = str(key)
-            # Clean up display name (remove "Key." prefix)
-            display_name = str(key).replace("Key.", "").upper()
+        key_name, display_name = self._get_key_names(key)
         
         event = {
             'type': 'key_press',
@@ -326,8 +456,33 @@ class EventRecorder:
     def _replay_key_press(self, event):
         """Replay a keyboard key press event."""
         key_name = event['key']
+        display_name = self._get_display_name_for_replay(key_name)
         
         try:
+            # Handle numpad keys
+            if key_name.startswith('num_'):
+                # Map numpad key names back to actual keys
+                numpad_chars = {
+                    'num_0': '0', 'num_1': '1', 'num_2': '2', 'num_3': '3',
+                    'num_4': '4', 'num_5': '5', 'num_6': '6', 'num_7': '7',
+                    'num_8': '8', 'num_9': '9', 'num_decimal': '.',
+                    'num_add': '+', 'num_subtract': '-',
+                    'num_multiply': '*', 'num_divide': '/',
+                }
+                if key_name in numpad_chars:
+                    char = numpad_chars[key_name]
+                    self.keyboard_controller.press(char)
+                    self._pressed_keys.add(char)
+                    if self.on_live_input_callback:
+                        self.on_live_input_callback("key", f"⌨ {display_name}")
+                    return
+                elif key_name == 'num_enter':
+                    self.keyboard_controller.press(Key.enter)
+                    self._pressed_keys.add(Key.enter)
+                    if self.on_live_input_callback:
+                        self.on_live_input_callback("key", f"⌨ {display_name}")
+                    return
+            
             # Try to parse as special key
             if key_name.startswith("Key."):
                 key_attr = key_name.split('.')[1]
@@ -335,25 +490,73 @@ class EventRecorder:
                 if key:
                     self.keyboard_controller.press(key)
                     self._pressed_keys.add(key)
-                    # Live input callback
                     if self.on_live_input_callback:
-                        self.on_live_input_callback("key", f"⌨ {key_attr.upper()}")
+                        self.on_live_input_callback("key", f"⌨ {display_name}")
                     return
             
             # Regular character
             self.keyboard_controller.press(key_name)
             self._pressed_keys.add(key_name)
-            # Live input callback
             if self.on_live_input_callback:
-                self.on_live_input_callback("key", f"⌨ {key_name}")
+                self.on_live_input_callback("key", f"⌨ {display_name}")
         except Exception as e:
             print(f"Error pressing key {key_name}: {e}")
+    
+    def _get_display_name_for_replay(self, key_name):
+        """Get a nice display name for a key during replay."""
+        # Numpad display names
+        numpad_display = {
+            'num_0': 'NUM 0', 'num_1': 'NUM 1', 'num_2': 'NUM 2', 'num_3': 'NUM 3',
+            'num_4': 'NUM 4', 'num_5': 'NUM 5', 'num_6': 'NUM 6', 'num_7': 'NUM 7',
+            'num_8': 'NUM 8', 'num_9': 'NUM 9', 'num_decimal': 'NUM .',
+            'num_add': 'NUM +', 'num_subtract': 'NUM -',
+            'num_multiply': 'NUM *', 'num_divide': 'NUM /',
+            'num_enter': 'NUM ENTER',
+        }
+        
+        if key_name in numpad_display:
+            return numpad_display[key_name]
+        
+        if key_name.startswith("Key."):
+            display = key_name.replace("Key.", "").upper()
+            # Make display names more readable
+            replacements = {
+                'SPACE': 'SPACE', 'ENTER': 'ENTER', 'BACKSPACE': 'BACKSPACE',
+                'TAB': 'TAB', 'CAPS_LOCK': 'CAPS', 'SHIFT': 'SHIFT',
+                'SHIFT_R': 'R-SHIFT', 'CTRL': 'CTRL', 'CTRL_L': 'L-CTRL',
+                'CTRL_R': 'R-CTRL', 'ALT': 'ALT', 'ALT_L': 'L-ALT',
+                'ALT_R': 'R-ALT', 'ALT_GR': 'ALT GR', 'UP': '↑', 'DOWN': '↓',
+                'LEFT': '←', 'RIGHT': '→', 'DELETE': 'DEL', 'INSERT': 'INS',
+                'HOME': 'HOME', 'END': 'END', 'PAGE_UP': 'PG UP', 'PAGE_DOWN': 'PG DN',
+            }
+            return replacements.get(display, display)
+        
+        return key_name
     
     def _replay_key_release(self, event):
         """Replay a keyboard key release event."""
         key_name = event['key']
         
         try:
+            # Handle numpad keys
+            if key_name.startswith('num_'):
+                numpad_chars = {
+                    'num_0': '0', 'num_1': '1', 'num_2': '2', 'num_3': '3',
+                    'num_4': '4', 'num_5': '5', 'num_6': '6', 'num_7': '7',
+                    'num_8': '8', 'num_9': '9', 'num_decimal': '.',
+                    'num_add': '+', 'num_subtract': '-',
+                    'num_multiply': '*', 'num_divide': '/',
+                }
+                if key_name in numpad_chars:
+                    char = numpad_chars[key_name]
+                    self.keyboard_controller.release(char)
+                    self._pressed_keys.discard(char)
+                    return
+                elif key_name == 'num_enter':
+                    self.keyboard_controller.release(Key.enter)
+                    self._pressed_keys.discard(Key.enter)
+                    return
+            
             # Try to parse as special key
             if key_name.startswith("Key."):
                 key_attr = key_name.split('.')[1]
