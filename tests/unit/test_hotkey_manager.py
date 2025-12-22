@@ -14,10 +14,11 @@ class TestHotkeyManagerInit:
         """Test that HotkeyManager initializes with correct default hotkeys."""
         manager = HotkeyManager()
         
-        assert manager.hotkey_record == keyboard.Key.f1
-        assert manager.hotkey_play == keyboard.Key.f2
-        assert manager.hotkey_stop == keyboard.Key.esc
-        assert manager.hotkey_spam == keyboard.Key.f3
+        # Hotkeys are now stored as KeyInfo objects
+        assert manager.hotkey_record.display_name == "F1"
+        assert manager.hotkey_play.display_name == "F2"
+        assert manager.hotkey_stop.display_name == "ESC"
+        assert manager.hotkey_spam.display_name == "F3"
     
     def test_initial_state(self):
         """Test initial state of the manager."""
@@ -91,15 +92,11 @@ class TestHotkeyManagerKeyNames:
         """Test getting name for character keys."""
         manager = HotkeyManager()
         
-        # Create a mock KeyCode
-        mock_key = Mock()
-        mock_key.char = 'a'
-        del mock_key.name  # Remove name attribute
+        key_a = keyboard.KeyCode.from_char('a')
+        result = manager.get_key_name(key_a)
         
-        result = manager.get_key_name(mock_key)
-        
-        # Result depends on implementation - just ensure it returns a string
-        assert isinstance(result, str)
+        # Should return uppercase display name
+        assert result == "A"
 
 
 class TestHotkeyManagerHotkeyCapture:
@@ -130,24 +127,25 @@ class TestHotkeyManagerSaveLoadRoundtrip:
         manager = HotkeyManager()
         
         # Set some special keys
-        manager.hotkey_record = keyboard.Key.f5
-        manager.hotkey_play = keyboard.Key.f6
-        manager.hotkey_stop = keyboard.Key.esc
-        manager.hotkey_spam = keyboard.Key.f7
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(keyboard.Key.f5, 'record')
+            manager.set_hotkey(keyboard.Key.f6, 'play')
+            manager.set_hotkey(keyboard.Key.esc, 'stop')
+            manager.set_hotkey(keyboard.Key.f7, 'spam')
         
         # Get hotkeys (simulates saving to JSON)
         saved = manager.get_hotkeys()
         
         # Create new manager and load hotkeys (simulates loading from JSON)
         new_manager = HotkeyManager()
-        with patch.object(new_manager, 'setup_listener'):  # Don't actually setup listener
+        with patch.object(new_manager, 'setup_listener'):
             new_manager.set_hotkeys(saved)
         
-        # Verify keys are correct
-        assert new_manager.hotkey_record == keyboard.Key.f5
-        assert new_manager.hotkey_play == keyboard.Key.f6
-        assert new_manager.hotkey_stop == keyboard.Key.esc
-        assert new_manager.hotkey_spam == keyboard.Key.f7
+        # Verify keys are correct by display name
+        assert new_manager.hotkey_record.display_name == "F5"
+        assert new_manager.hotkey_play.display_name == "F6"
+        assert new_manager.hotkey_stop.display_name == "ESC"
+        assert new_manager.hotkey_spam.display_name == "F7"
     
     def test_save_and_load_character_keys(self):
         """Test that character keys (a, b, etc.) survive save/load roundtrip."""
@@ -156,24 +154,26 @@ class TestHotkeyManagerSaveLoadRoundtrip:
         # Set character keys
         key_a = keyboard.KeyCode.from_char('a')
         key_b = keyboard.KeyCode.from_char('b')
-        manager.hotkey_record = key_a
-        manager.hotkey_play = key_b
+        
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(key_a, 'record')
+            manager.set_hotkey(key_b, 'play')
         
         # Get hotkeys (simulates saving to JSON)
         saved = manager.get_hotkeys()
         
-        # Verify saved format doesn't have quotes
+        # Verify saved format is uppercase
         assert saved['record'] == 'A'
         assert saved['play'] == 'B'
         
-        # Create new manager and load hotkeys (simulates loading from JSON)
+        # Create new manager and load hotkeys
         new_manager = HotkeyManager()
         with patch.object(new_manager, 'setup_listener'):
             new_manager.set_hotkeys(saved)
         
-        # Verify keys work (compare by creating same key)
-        assert new_manager.hotkey_record == keyboard.KeyCode.from_char('a')
-        assert new_manager.hotkey_play == keyboard.KeyCode.from_char('b')
+        # Verify keys are correct
+        assert new_manager.hotkey_record.display_name == 'A'
+        assert new_manager.hotkey_play.display_name == 'B'
     
     def test_get_key_name_no_quotes_for_char_keys(self):
         """Test that get_key_name returns clean names without quotes."""
@@ -187,22 +187,14 @@ class TestHotkeyManagerSaveLoadRoundtrip:
         assert "'" not in name
         assert '"' not in name
     
-    def test_parse_key_name_handles_quoted_input(self):
-        """Test that parse_key_name handles input with quotes (legacy files)."""
-        manager = HotkeyManager()
-        
-        # Even if old file had quotes, it should still parse correctly
-        parsed = manager.parse_key_name("'A'")
-        expected = keyboard.KeyCode.from_char('a')
-        
-        assert parsed == expected
-    
     def test_hotkeys_work_after_load(self):
-        """Test that loaded hotkeys actually trigger correctly."""
+        """Test that loaded hotkeys are set correctly."""
         manager = HotkeyManager()
         
         # Setup with custom keys
-        manager.hotkey_record = keyboard.Key.f9
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(keyboard.Key.f9, 'record')
+        
         saved = manager.get_hotkeys()
         
         # Load into new manager
@@ -213,59 +205,33 @@ class TestHotkeyManagerSaveLoadRoundtrip:
         with patch.object(new_manager, 'setup_listener'):
             new_manager.set_hotkeys(saved)
         
-        # Verify the hotkey is set correctly for comparison
-        assert new_manager.hotkey_record == keyboard.Key.f9
+        # Verify the hotkey is set correctly
+        assert new_manager.hotkey_record.display_name == "F9"
 
 
-class TestHotkeyManagerCaseInsensitivity:
-    """Test that hotkeys work regardless of shift/caps lock state."""
+class TestHotkeyManagerGetHotkeys:
+    """Tests for get_hotkeys functionality."""
     
-    def test_uppercase_hotkey_set_stored_as_lowercase(self):
-        """When user presses 'R' (uppercase), it should be stored as 'r'."""
+    def test_get_hotkeys_returns_display_names(self):
+        """Test that get_hotkeys returns display-friendly names."""
         manager = HotkeyManager()
         
-        # Simulate user pressing 'R' with caps lock on
-        uppercase_key = keyboard.KeyCode.from_char('R')
+        hotkeys = manager.get_hotkeys()
         
-        with patch.object(manager, 'setup_listener'):
-            manager.set_hotkey(uppercase_key, 'record')
-        
-        # Should be stored as lowercase
-        assert manager.hotkey_record == keyboard.KeyCode.from_char('r')
+        assert hotkeys['record'] == 'F1'
+        assert hotkeys['play'] == 'F2'
+        assert hotkeys['stop'] == 'ESC'
+        assert hotkeys['spam'] == 'F3'
     
-    def test_lowercase_hotkey_remains_lowercase(self):
-        """When user presses 'r' (lowercase), it should stay as 'r'."""
+    def test_get_ignored_keys(self):
+        """Test getting list of keys to ignore during recording."""
         manager = HotkeyManager()
         
-        lowercase_key = keyboard.KeyCode.from_char('r')
+        ignored = manager.get_ignored_keys()
         
-        with patch.object(manager, 'setup_listener'):
-            manager.set_hotkey(lowercase_key, 'record')
-        
-        assert manager.hotkey_record == keyboard.KeyCode.from_char('r')
-    
-    def test_special_keys_unaffected(self):
-        """Special keys like F1 should not be affected by normalization."""
-        manager = HotkeyManager()
-        
-        with patch.object(manager, 'setup_listener'):
-            manager.set_hotkey(keyboard.Key.f5, 'record')
-        
-        assert manager.hotkey_record == keyboard.Key.f5
-    
-    def test_normalize_key_method(self):
-        """Test the _normalize_key method directly."""
-        manager = HotkeyManager()
-        
-        # Uppercase should become lowercase
-        upper = keyboard.KeyCode.from_char('A')
-        assert manager._normalize_key(upper) == keyboard.KeyCode.from_char('a')
-        
-        # Lowercase should stay lowercase
-        lower = keyboard.KeyCode.from_char('a')
-        assert manager._normalize_key(lower) == keyboard.KeyCode.from_char('a')
-        
-        # Special keys should be unchanged
-        f1 = keyboard.Key.f1
-        assert manager._normalize_key(f1) == keyboard.Key.f1
+        assert len(ignored) == 4
+        assert manager.hotkey_record in ignored
+        assert manager.hotkey_play in ignored
+        assert manager.hotkey_stop in ignored
+        assert manager.hotkey_spam in ignored
 

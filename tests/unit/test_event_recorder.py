@@ -1,120 +1,154 @@
-"""Unit tests for EventRecorder class."""
+"""Unit tests for Recorder and Player classes."""
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-from models.event_recorder import EventRecorder
+from models.recorder import Recorder
+from models.player import Player
 
 
-class TestEventRecorderInit:
-    """Tests for EventRecorder initialization."""
+class TestRecorderInit:
+    """Tests for Recorder initialization."""
     
     def test_initial_state(self):
-        """Test that EventRecorder initializes with correct default state."""
-        recorder = EventRecorder()
+        """Test that Recorder initializes with correct default state."""
+        recorder = Recorder()
         
         assert recorder.is_recording is False
-        assert recorder.is_playing is False
         assert recorder.recorded_events == []
         assert recorder.start_time is None
-        assert recorder.loop_count == 1
-        assert recorder.loop_delay == 0.0
-        assert recorder.playback_speed == 1.0
     
-    def test_controllers_initialized(self):
-        """Test that mouse and keyboard controllers are initialized."""
-        recorder = EventRecorder()
+    def test_event_count(self):
+        """Test that event count property works."""
+        recorder = Recorder()
         
-        assert recorder.mouse_controller is not None
-        assert recorder.keyboard_controller is not None
+        assert recorder.event_count == 0
+        recorder.recorded_events = [{"type": "test"}, {"type": "test2"}]
+        assert recorder.event_count == 2
 
 
-class TestEventRecorderCallbacks:
-    """Tests for EventRecorder callback functionality."""
+class TestPlayerInit:
+    """Tests for Player initialization."""
+    
+    def test_initial_state(self):
+        """Test that Player initializes with correct default state."""
+        player = Player()
+        
+        assert player.is_playing is False
+
+
+class TestRecorderCallbacks:
+    """Tests for Recorder callback functionality."""
     
     def test_set_callbacks(self):
         """Test setting callback functions."""
-        recorder = EventRecorder()
+        recorder = Recorder()
         
         mock_on_event = Mock()
         mock_on_status = Mock()
-        mock_on_complete = Mock()
+        mock_on_live_input = Mock()
         
         recorder.set_callbacks(
             on_event=mock_on_event,
             on_status=mock_on_status,
-            on_playback_complete=mock_on_complete
+            on_live_input=mock_on_live_input
         )
         
-        assert recorder.on_event_callback == mock_on_event
-        assert recorder.on_status_callback == mock_on_status
-        assert recorder.on_playback_complete_callback == mock_on_complete
+        assert recorder._on_event == mock_on_event
+        assert recorder._on_status == mock_on_status
+        assert recorder._on_live_input == mock_on_live_input
     
     def test_set_partial_callbacks(self):
         """Test setting only some callbacks."""
-        recorder = EventRecorder()
+        recorder = Recorder()
         mock_on_event = Mock()
         
         recorder.set_callbacks(on_event=mock_on_event)
         
-        assert recorder.on_event_callback == mock_on_event
-        assert recorder.on_status_callback is None
+        assert recorder._on_event == mock_on_event
+        assert recorder._on_status is None
 
 
-class TestEventRecorderRecording:
-    """Tests for EventRecorder recording functionality."""
+class TestPlayerCallbacks:
+    """Tests for Player callback functionality."""
+    
+    def test_set_callbacks(self):
+        """Test setting callback functions."""
+        player = Player()
+        
+        mock_on_status = Mock()
+        mock_on_complete = Mock()
+        
+        player.set_callbacks(
+            on_status=mock_on_status,
+            on_complete=mock_on_complete
+        )
+        
+        assert player._on_status == mock_on_status
+        assert player._on_complete == mock_on_complete
+
+
+class TestRecorderRecording:
+    """Tests for Recorder recording functionality."""
     
     def test_start_recording_changes_state(self):
         """Test that starting recording changes the recording state."""
-        recorder = EventRecorder()
+        recorder = Recorder()
         
         with patch('pynput.mouse.Listener'), patch('pynput.keyboard.Listener'):
-            recorder.start_recording()
+            recorder.start()
         
         assert recorder.is_recording is True
         assert recorder.recorded_events == []
     
-    def test_cannot_record_while_playing(self):
-        """Test that recording cannot start during playback."""
-        recorder = EventRecorder()
-        recorder.is_playing = True
+    def test_cannot_start_while_recording(self):
+        """Test that recording cannot start twice."""
+        recorder = Recorder()
+        recorder.is_recording = True
         
-        result = recorder.start_recording()
+        result = recorder.start()
         
         assert result is False
-        assert recorder.is_recording is False
 
 
-class TestEventRecorderPlayback:
-    """Tests for EventRecorder playback functionality."""
-    
-    def test_playback_settings(self):
-        """Test setting playback parameters."""
-        recorder = EventRecorder()
-        
-        recorder.loop_count = 5
-        recorder.loop_delay = 2.0
-        recorder.playback_speed = 0.5
-        
-        assert recorder.loop_count == 5
-        assert recorder.loop_delay == 2.0
-        assert recorder.playback_speed == 0.5
+class TestPlayerPlayback:
+    """Tests for Player playback functionality."""
     
     def test_cannot_play_empty_recording(self):
         """Test that playback fails with no recorded events."""
-        recorder = EventRecorder()
-        recorder.recorded_events = []
+        player = Player()
         
-        result = recorder.start_playback()
+        result = player.start(events=[])
         
         assert result is False
     
-    def test_cannot_play_while_recording(self):
-        """Test that playback cannot start during recording."""
-        recorder = EventRecorder()
-        recorder.is_recording = True
-        recorder.recorded_events = [{"type": "test"}]
+    def test_cannot_play_while_playing(self):
+        """Test that playback cannot start during playback."""
+        player = Player()
+        player.is_playing = True
         
-        result = recorder.start_playback()
+        result = player.start(events=[{"type": "test"}])
         
         assert result is False
+    
+    def test_playback_settings_passed(self):
+        """Test setting playback parameters."""
+        player = Player()
+        
+        events = [{"type": "test", "timestamp": 0.1}]
+        
+        with patch.object(player, '_playback_worker'):
+            # Mock the thread to prevent actual playback
+            with patch('threading.Thread') as mock_thread:
+                mock_thread_instance = Mock()
+                mock_thread.return_value = mock_thread_instance
+                
+                result = player.start(
+                    events=events,
+                    loop_count=5,
+                    loop_delay=2.0,
+                    playback_speed=0.5
+                )
+                
+                assert result is True
+                assert player.is_playing is True
