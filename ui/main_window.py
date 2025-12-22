@@ -10,6 +10,12 @@ from models.hotkey_manager import HotkeyManager
 from ui.banner import BannerManager
 from utils.file_manager import FileManager
 
+# Debug logging
+DEBUG_KEYS = False
+
+def debug_log(msg):
+    if DEBUG_KEYS:
+        print(f"[KEY_UTILS DEBUG] {msg}")
 
 class MainWindow:
     """Main application window for AutoClicker."""
@@ -479,7 +485,9 @@ class MainWindow:
             messagebox.showwarning("Playback Active", "Please stop playback before loading!")
             return
         
+        debug_log("[MAIN_WINDOW DEBUG] Calling FileManager.load_recording()")
         success, events, config, message = FileManager.load_recording()
+        debug_log(f"[MAIN_WINDOW DEBUG] Load result: success={success}, events count={len(events) if events else 0}, config={config}")
         
         if success:
             self.event_recorder.set_events(events)
@@ -492,6 +500,7 @@ class MainWindow:
             
             # Load configuration if available
             if config:
+                debug_log(f"[MAIN_WINDOW DEBUG] Config exists: {config}")
                 if 'loops' in config:
                     self.loop_spinbox.delete(0, "end")
                     self.loop_spinbox.insert(0, str(config['loops']))
@@ -502,6 +511,7 @@ class MainWindow:
                     self.speed_spinbox.delete(0, "end")
                     self.speed_spinbox.insert(0, str(config['speed']))
                 if 'hotkeys' in config:
+                    debug_log(f"[MAIN_WINDOW DEBUG] Loading hotkeys: {config['hotkeys']}")
                     self.hotkey_manager.set_hotkeys(config['hotkeys'])
                     # Update button labels
                     hotkeys = self.hotkey_manager.get_hotkeys()

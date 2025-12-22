@@ -161,7 +161,7 @@ class KeyInfo:
     
     def __eq__(self, other):
         """Compare two KeyInfo objects for equality."""
-        if isinstance(other, KeyInfo):
+        if hasattr(other, 'normalized_key'):
             return self.normalized_key == other.normalized_key
         return False
     
@@ -238,7 +238,8 @@ def parse_key_name(key_name):
         
         # Parse NUM X format
         if key_name_upper.startswith('NUM '):
-            suffix = key_name_clean[4:] if key_name_clean.startswith('num_') else key_name[4:]
+            suffix = key_name_clean[4:] if key_name_clean.startswith('num_') else key_name_clean[4:]
+            debug_log(f"  -> Parsing NUM format, suffix='{suffix}'")
             
             if suffix in '0123456789':
                 return ('numpad_char', suffix)

@@ -55,9 +55,10 @@ class HotkeyManager:
         """Get a readable name for a key.
         
         Args:
-            key: Can be a pynput key, KeyInfo object, or normalized tuple
+            key: Can be a pynput key, KeyInfo object, LoadedKeyInfo, or normalized tuple
         """
-        if isinstance(key, KeyInfo):
+        # Check for display_name attribute first (works for both KeyInfo and LoadedKeyInfo)
+        if hasattr(key, 'display_name'):
             return key.display_name
         elif isinstance(key, tuple):
             return get_display_name(key)
@@ -175,20 +176,33 @@ class HotkeyManager:
     def set_hotkeys(self, hotkeys_dict):
         """Set hotkeys from a dictionary (loading from config)."""
         debug_log(f"set_hotkeys called with: {hotkeys_dict}")
+        debug_log(f"  Type of hotkeys_dict: {type(hotkeys_dict)}")
         
         if 'record' in hotkeys_dict:
+            debug_log(f"  Processing 'record' key: {hotkeys_dict['record']}")
             normalized = self.parse_key_name(hotkeys_dict['record'])
+            debug_log(f"    Normalized tuple: {normalized}")
             # Create a KeyInfo-like object for comparison
             self.hotkey_record = self._create_key_info_from_normalized(normalized, hotkeys_dict['record'])
+            debug_log(f"    Created KeyInfo: {self.hotkey_record}")
         if 'play' in hotkeys_dict:
+            debug_log(f"  Processing 'play' key: {hotkeys_dict['play']}")
             normalized = self.parse_key_name(hotkeys_dict['play'])
+            debug_log(f"    Normalized tuple: {normalized}")
             self.hotkey_play = self._create_key_info_from_normalized(normalized, hotkeys_dict['play'])
+            debug_log(f"    Created KeyInfo: {self.hotkey_play}")
         if 'stop' in hotkeys_dict:
+            debug_log(f"  Processing 'stop' key: {hotkeys_dict['stop']}")
             normalized = self.parse_key_name(hotkeys_dict['stop'])
+            debug_log(f"    Normalized tuple: {normalized}")
             self.hotkey_stop = self._create_key_info_from_normalized(normalized, hotkeys_dict['stop'])
+            debug_log(f"    Created KeyInfo: {self.hotkey_stop}")
         if 'spam' in hotkeys_dict:
+            debug_log(f"  Processing 'spam' key: {hotkeys_dict['spam']}")
             normalized = self.parse_key_name(hotkeys_dict['spam'])
+            debug_log(f"    Normalized tuple: {normalized}")
             self.hotkey_spam = self._create_key_info_from_normalized(normalized, hotkeys_dict['spam'])
+            debug_log(f"    Created KeyInfo: {self.hotkey_spam}")
         
         debug_log(f"  Hotkeys loaded: record={self.hotkey_record}, play={self.hotkey_play}, stop={self.hotkey_stop}, spam={self.hotkey_spam}")
         
@@ -206,8 +220,13 @@ class HotkeyManager:
                 self.is_numpad = normalized[0] in ('numpad', 'numpad_char')
             
             def __eq__(self, other):
+                debug_log(f"      LoadedKeyInfo.__eq__ called: self.normalized_key={self.normalized_key}, other={other}")
                 if hasattr(other, 'normalized_key'):
-                    return self.normalized_key == other.normalized_key
+                    debug_log(f"        other.normalized_key={other.normalized_key}")
+                    result = self.normalized_key == other.normalized_key
+                    debug_log(f"        Comparison result: {result}")
+                    return result
+                debug_log(f"        other has no normalized_key attribute")
                 return False
             
             def __repr__(self):

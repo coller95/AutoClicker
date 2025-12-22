@@ -4,6 +4,13 @@ from tkinter import filedialog, messagebox
 import json
 import os
 
+# Debug logging
+DEBUG_FILE_LOAD = False
+
+def debug_log(msg):
+    if DEBUG_FILE_LOAD:
+        print(f"[FILE DEBUG] {msg}")
+
 
 class FileManager:
     """Manages saving and loading of recording files."""
@@ -74,16 +81,25 @@ class FileManager:
         
         try:
             # Load data from JSON file
+            debug_log(f"Loading file: {file_path}")
             with open(file_path, 'r') as f:
                 loaded_data = json.load(f)
+            
+            debug_log(f"Loaded data type: {type(loaded_data)}")
+            debug_log(f"Loaded data keys: {loaded_data.keys() if isinstance(loaded_data, dict) else 'N/A (not a dict)'}")
             
             # Check if it's the new format (with config) or old format (just events)
             if isinstance(loaded_data, dict) and 'events' in loaded_data:
                 # New format: has events and config
+                debug_log("Format: New format (with config)")
                 loaded_events = loaded_data['events']
                 config = loaded_data.get('config', {})
+                debug_log(f"Config found: {config}")
+                if 'hotkeys' in config:
+                    debug_log(f"Hotkeys in config: {config['hotkeys']}")
             else:
                 # Old format: just events
+                debug_log("Format: Old format (events only)")
                 loaded_events = loaded_data
                 config = {}
             
