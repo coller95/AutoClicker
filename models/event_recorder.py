@@ -48,8 +48,9 @@ class EventRecorder:
         self.on_status_callback = None
         self.on_playback_complete_callback = None
         self.on_live_input_callback = None  # For showing live key/mouse input
+        self.on_delay_countdown_callback = None  # For showing countdown during loop delay
     
-    def set_callbacks(self, on_event=None, on_status=None, on_playback_complete=None, on_live_input=None):
+    def set_callbacks(self, on_event=None, on_status=None, on_playback_complete=None, on_live_input=None, on_delay_countdown=None):
         """Set callback functions for events."""
         if on_event:
             self.on_event_callback = on_event
@@ -59,6 +60,8 @@ class EventRecorder:
             self.on_playback_complete_callback = on_playback_complete
         if on_live_input:
             self.on_live_input_callback = on_live_input
+        if on_delay_countdown:
+            self.on_delay_countdown_callback = on_delay_countdown
     
     def set_ignored_keys(self, keys):
         """Set keys to ignore during recording.
@@ -414,7 +417,18 @@ class EventRecorder:
                 if loop > 0 and self.loop_delay > 0:
                     if DEBUG:
                         print(f"[DEBUG] Sleeping for loop_delay: {self.loop_delay}")
-                    time.sleep(self.loop_delay)
+                    # Countdown timer with banner updates
+                    remaining = self.loop_delay
+                    while remaining > 0 and self.is_playing:
+                        if self.on_delay_countdown_callback:
+                            self.on_delay_countdown_callback(remaining)
+                        # Sleep in small increments for responsive countdown
+                        sleep_time = min(0.1, remaining)
+                        time.sleep(sleep_time)
+                        remaining -= sleep_time
+                    # Clear countdown when done
+                    if self.on_delay_countdown_callback and self.is_playing:
+                        self.on_delay_countdown_callback(0)
                 
                 loop += 1
                 

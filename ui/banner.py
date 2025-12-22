@@ -12,6 +12,7 @@ class BannerManager:
         self.border_frames = []
         self.status_labels = []  # Status labels for updating messages
         self.input_labels = []   # Labels for showing live input
+        self.countdown_labels = []  # Labels for showing countdown timer
         self.current_bg_color = None
         self.default_status = ""
         self.auto_hide_id = None  # For auto-hiding status messages
@@ -57,6 +58,7 @@ class BannerManager:
         self.current_bg_color = bg_color
         self.status_labels = []
         self.input_labels = []  # For showing live input
+        self.countdown_labels = []  # For showing countdown timer
         self.default_status = status_text or ""
         
         # Get all monitors
@@ -87,6 +89,14 @@ class BannerManager:
                                   width=25, anchor="w")
             input_label.pack(anchor="w")
             self.input_labels.append(input_label)
+            
+            # Countdown timer label (shows delay countdown between loops)
+            countdown_label = tk.Label(banner_frame, text="",
+                                       font=("Arial", 11, "bold"),
+                                       bg=bg_color, fg="#4FC3F7",  # Light blue for visibility
+                                       anchor="w")
+            countdown_label.pack(anchor="w")
+            self.countdown_labels.append(countdown_label)
             
             # Status line (smaller, below main text)
             status_label = tk.Label(banner_frame, text=status_text or "",
@@ -150,6 +160,35 @@ class BannerManager:
         for label in self.input_labels:
             try:
                 label.config(text=input_text)
+            except:
+                pass
+        
+        # Update window geometry to fit new text
+        for window in self.banner_windows:
+            try:
+                window.update_idletasks()
+            except:
+                pass
+    
+    def update_countdown(self, remaining_seconds):
+        """Update the countdown timer display on all banners.
+        
+        Args:
+            remaining_seconds: Seconds remaining in the delay (0 to hide)
+        """
+        if not self.banner_windows:
+            return
+        
+        # Format countdown text
+        if remaining_seconds > 0:
+            countdown_text = f"⏱ Next loop in: {remaining_seconds:.1f}s"
+        else:
+            countdown_text = ""
+        
+        # Update all countdown labels
+        for label in self.countdown_labels:
+            try:
+                label.config(text=countdown_text)
             except:
                 pass
         
@@ -265,6 +304,7 @@ class BannerManager:
         self.banner_windows = []
         self.status_labels = []
         self.input_labels = []
+        self.countdown_labels = []
         self.current_bg_color = None
         self.default_status = ""
         

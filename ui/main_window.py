@@ -55,7 +55,8 @@ class MainWindow:
             on_event=self._on_event_recorded,
             on_status=self._update_status_threadsafe,
             on_playback_complete=self._on_playback_complete,
-            on_live_input=self._on_live_input
+            on_live_input=self._on_live_input,
+            on_delay_countdown=self._on_delay_countdown
         )
         
         # Spam clicker callbacks
@@ -92,6 +93,14 @@ class MainWindow:
         """
         # Thread-safe update
         self.root.after(0, self._update_live_input_display, input_type, input_text)
+    
+    def _on_delay_countdown(self, remaining_seconds):
+        """Callback when countdown timer updates during loop delay.
+        
+        Updates the banner with the countdown timer.
+        """
+        # Thread-safe update
+        self.root.after(0, self.banner_manager.update_countdown, remaining_seconds)
     
     def _update_live_input_display(self, input_type, input_text):
         """Update the live input display in banner and status."""
