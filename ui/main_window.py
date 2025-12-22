@@ -119,15 +119,15 @@ class MainWindow:
         key_name = self.hotkey_manager.get_key_name(key)
         
         if hotkey_type == 'record':
-            self.record_hotkey_btn.config(text=key_name, bg="SystemButtonFace")
+            self.record_hotkey_btn.config(text=key_name, bg="gray85")
             self.record_btn.config(text=f"Record ({key_name})")
         elif hotkey_type == 'play':
-            self.play_hotkey_btn.config(text=key_name, bg="SystemButtonFace")
+            self.play_hotkey_btn.config(text=key_name, bg="gray85")
             self.play_btn.config(text=f"Play ({key_name})")
         elif hotkey_type == 'stop':
-            self.stop_hotkey_btn.config(text=key_name, bg="SystemButtonFace")
+            self.stop_hotkey_btn.config(text=key_name, bg="gray85")
         elif hotkey_type == 'spam':
-            self.spam_hotkey_btn.config(text=key_name, bg="SystemButtonFace")
+            self.spam_hotkey_btn.config(text=key_name, bg="gray85")
         
         self.info_label.config(text=self.get_hotkey_info())
         self.event_recorder.set_ignored_keys(self.hotkey_manager.get_ignored_keys())

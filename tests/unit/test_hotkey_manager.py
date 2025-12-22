@@ -216,3 +216,56 @@ class TestHotkeyManagerSaveLoadRoundtrip:
         # Verify the hotkey is set correctly for comparison
         assert new_manager.hotkey_record == keyboard.Key.f9
 
+
+class TestHotkeyManagerCaseInsensitivity:
+    """Test that hotkeys work regardless of shift/caps lock state."""
+    
+    def test_uppercase_hotkey_set_stored_as_lowercase(self):
+        """When user presses 'R' (uppercase), it should be stored as 'r'."""
+        manager = HotkeyManager()
+        
+        # Simulate user pressing 'R' with caps lock on
+        uppercase_key = keyboard.KeyCode.from_char('R')
+        
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(uppercase_key, 'record')
+        
+        # Should be stored as lowercase
+        assert manager.hotkey_record == keyboard.KeyCode.from_char('r')
+    
+    def test_lowercase_hotkey_remains_lowercase(self):
+        """When user presses 'r' (lowercase), it should stay as 'r'."""
+        manager = HotkeyManager()
+        
+        lowercase_key = keyboard.KeyCode.from_char('r')
+        
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(lowercase_key, 'record')
+        
+        assert manager.hotkey_record == keyboard.KeyCode.from_char('r')
+    
+    def test_special_keys_unaffected(self):
+        """Special keys like F1 should not be affected by normalization."""
+        manager = HotkeyManager()
+        
+        with patch.object(manager, 'setup_listener'):
+            manager.set_hotkey(keyboard.Key.f5, 'record')
+        
+        assert manager.hotkey_record == keyboard.Key.f5
+    
+    def test_normalize_key_method(self):
+        """Test the _normalize_key method directly."""
+        manager = HotkeyManager()
+        
+        # Uppercase should become lowercase
+        upper = keyboard.KeyCode.from_char('A')
+        assert manager._normalize_key(upper) == keyboard.KeyCode.from_char('a')
+        
+        # Lowercase should stay lowercase
+        lower = keyboard.KeyCode.from_char('a')
+        assert manager._normalize_key(lower) == keyboard.KeyCode.from_char('a')
+        
+        # Special keys should be unchanged
+        f1 = keyboard.Key.f1
+        assert manager._normalize_key(f1) == keyboard.Key.f1
+
