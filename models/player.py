@@ -291,11 +291,47 @@ class Player:
         if key_name == 'num_enter':
             return Key.enter
         
-        # Special keys
+        # Special keys (handle both 'Key.f1' and 'F1' etc.)
         if key_name.startswith("Key."):
             key_attr = key_name.split('.')[1]
             return getattr(Key, key_attr, None)
-        
+
+        # Map common special key names to pynput.keyboard.Key
+        special_keys = {
+            'F1': Key.f1,
+            'F2': Key.f2,
+            'F3': Key.f3,
+            'F4': Key.f4,
+            'F5': Key.f5,
+            'F6': Key.f6,
+            'F7': Key.f7,
+            'F8': Key.f8,
+            'F9': Key.f9,
+            'F10': Key.f10,
+            'F11': Key.f11,
+            'F12': Key.f12,
+            'ESC': Key.esc,
+            'ENTER': Key.enter,
+            'SPACE': Key.space,
+            'TAB': Key.tab,
+            'SHIFT': Key.shift,
+            'CTRL': Key.ctrl,
+            'ALT': Key.alt,
+            'BACKSPACE': Key.backspace,
+            'DELETE': Key.delete,
+            'INSERT': Key.insert,
+            'HOME': Key.home,
+            'END': Key.end,
+            'PAGE_UP': Key.page_up,
+            'PAGE_DOWN': Key.page_down,
+            'LEFT': Key.left,
+            'RIGHT': Key.right,
+            'UP': Key.up,
+            'DOWN': Key.down,
+        }
+        if key_name.upper() in special_keys:
+            return special_keys[key_name.upper()]
+
         # Regular character
         return key_name
     
