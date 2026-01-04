@@ -1,5 +1,7 @@
 """Banner and border overlay management for visual feedback."""
 
+import os
+import sys
 import tkinter as tk
 
 
@@ -16,6 +18,41 @@ class BannerManager:
         self.current_bg_color = None
         self.default_status = ""
         self.auto_hide_id = None  # For auto-hiding status messages
+
+    def _make_overlay_clickthrough(self, window):
+        """Attempt to keep overlay non-interactive so focus stays on target app."""
+        try:
+            window.attributes('-topmost', True)
+            window.attributes('-disabled', True)
+            window.attributes('-takefocus', False)
+        except tk.TclError:
+            pass
+
+        # Platform-specific tweaks: on Windows use WS_EX_TRANSPARENT so clicks pass through
+        if os.name == "nt":
+            try:
+                import ctypes
+
+                GWL_EXSTYLE = -20
+                WS_EX_TRANSPARENT = 0x00000020
+                WS_EX_LAYERED = 0x00080000
+                WS_EX_NOACTIVATE = 0x08000000
+
+                hwnd = ctypes.windll.user32.GetParent(window.winfo_id())
+                styles = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                ctypes.windll.user32.SetWindowLongW(
+                    hwnd,
+                    GWL_EXSTYLE,
+                    styles | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE
+                )
+                ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 0x02)
+            except Exception:
+                pass
+        elif sys.platform.startswith("linux"):
+            try:
+                window.attributes('-type', 'dock')
+            except tk.TclError:
+                pass
     
     def _get_all_monitors(self):
         """Get geometry of all monitors.
@@ -69,8 +106,8 @@ class BannerManager:
             # Create compact banner at top-left of this monitor
             banner_window = tk.Toplevel(self.root)
             banner_window.overrideredirect(True)  # Remove window decorations
-            banner_window.attributes('-topmost', True)  # Always on top
             banner_window.configure(bg=bg_color)
+            self._make_overlay_clickthrough(banner_window)
             
             # Create frame to hold labels
             banner_frame = tk.Frame(banner_window, bg=bg_color)
@@ -117,33 +154,33 @@ class BannerManager:
             # Top border
             top_frame = tk.Toplevel(self.root)
             top_frame.overrideredirect(True)
-            top_frame.attributes('-topmost', True)
             top_frame.configure(bg=bg_color)
             top_frame.geometry(f"{mon_width}x{border_thickness}+{mon_x}+{mon_y}")
+            self._make_overlay_clickthrough(top_frame)
             self.border_frames.append(top_frame)
             
             # Bottom border
             bottom_frame = tk.Toplevel(self.root)
             bottom_frame.overrideredirect(True)
-            bottom_frame.attributes('-topmost', True)
             bottom_frame.configure(bg=bg_color)
             bottom_frame.geometry(f"{mon_width}x{border_thickness}+{mon_x}+{mon_y + mon_height - border_thickness}")
+            self._make_overlay_clickthrough(bottom_frame)
             self.border_frames.append(bottom_frame)
             
             # Left border
             left_frame = tk.Toplevel(self.root)
             left_frame.overrideredirect(True)
-            left_frame.attributes('-topmost', True)
             left_frame.configure(bg=bg_color)
             left_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x}+{mon_y}")
+            self._make_overlay_clickthrough(left_frame)
             self.border_frames.append(left_frame)
             
             # Right border
             right_frame = tk.Toplevel(self.root)
             right_frame.overrideredirect(True)
-            right_frame.attributes('-topmost', True)
             right_frame.configure(bg=bg_color)
             right_frame.geometry(f"{border_thickness}x{mon_height}+{mon_x + mon_width - border_thickness}+{mon_y}")
+            self._make_overlay_clickthrough(right_frame)
             self.border_frames.append(right_frame)
     
     def update_live_input(self, input_type, input_text):
@@ -272,8 +309,8 @@ class BannerManager:
             # Create compact message banner
             banner_window = tk.Toplevel(self.root)
             banner_window.overrideredirect(True)
-            banner_window.attributes('-topmost', True)
             banner_window.configure(bg=color)
+            self._make_overlay_clickthrough(banner_window)
             
             # Message label
             msg_label = tk.Label(banner_window, text=message,
